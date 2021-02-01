@@ -1,26 +1,50 @@
-var fs = require("fs"),
-  PNG = require("pngjs").PNG;
- 
-fs.createReadStream("input/rose.png")
-  .pipe(
-    new PNG({
-      filterType: 4,
-    })
-  )
-  .on("parsed", function () {
-    // for (var y = 0; y < this.height; y++) {
-    //   for (var x = 0; x < this.width; x++) {
-    //     var idx = (this.width * y + x) << 2;
- 
-    //     // invert color
-    //     this.data[idx] = 255 - this.data[idx];
-    //     this.data[idx + 1] = 255 - this.data[idx + 1];
-    //     this.data[idx + 2] = 255 - this.data[idx + 2];
- 
-    //     // and reduce opacity
-    //     this.data[idx + 3] = this.data[idx + 3] >> 1;
-    //   }
-    // }
- 
-    this.pack().pipe(fs.createWriteStream("output/out.png"));
-  });
+
+var fs = require("fs");
+
+var  PNG = require("pngjs").PNG;
+
+var data = fs.readFileSync('input/rose.png');
+var png = PNG.sync.read(data);
+
+console.log(typeof(png));
+console.log(png.data[10]);
+
+
+  class VariableNode{
+      constructor(variableID, mu, sigma, priorID, leftID, rightID, upID, downID){
+        this.variableID = variableID;
+        this.mu = mu;
+        this.sigma = sigma;
+        this.priorID = priorID;
+        this.leftID = leftID;
+        this.rightID = rightID;
+        this.upID = upID;
+        this.downID = downID;
+        this.out_eta = new Array(); //same shape as mu
+        this.out_lambda_prime = np.zeros(sigma.shape); //same shape as sigma
+      }
+
+      getEta() {
+          return this.out_eta;
+      }
+
+      getLambdaPrime() {
+          return this.out_lambda_prime;
+      }
+
+      getMu(){
+          return this.mu;
+      }
+
+      getSigma(){
+          return this.sigma;
+      }
+
+      beliefUpdate(){
+
+      }
+
+      computeMsg(){
+        //   compute msg right, up, left and down
+      }
+  }

@@ -3,7 +3,8 @@
 //     transpose, chain, derivative, e, evaluate, log, pi, pow, round, sqrt
 //   } from 'mathjs';
 
-const { size, multiply, transpose, sqrt, ones, zeros } = require('mathjs')
+const { inv, matrix, size, multiply, transpose, sqrt, ones, zeros } = require('mathjs');
+const { exit } = require('process');
 
 var noisySignal = getImgData("rose.png");
 
@@ -69,11 +70,45 @@ class VariableNode{
     }
 
     beliefUpdate(){
+        var eta_here = matrix([[0.0]]).astype(np.float32)
+        var lambda_prime_here = np.array([[0.0]]).astype(np.float32)
+        var factorIDs = [this.priorID, this.leftID, this.rightID, this.upID, this.downID]
 
+        var fID;
+        for (fID in factorIDs) {
+            //  sometimes i don't have a factor to my left or right and this id is set to -1
+            if (fID != -1){
+                eta_here += factorNodes[fID].getEta();
+                lambda_prime_here += factorNodes[fID].getLambdaPrime();
+            }
+        }
+            
+        if (lambda_prime_here == 0.0){
+            console.log('Lambda prime is zero in belief update, something is wrong');
+            exit(0);
+        }
+
+        this.sigma = inv(lambda_prime_here);
+        this.mu = multiply(this.sigma, eta_here);
+        this.out_eta = eta_here;
+        this.out_lambda_prime = lambda_prime_here;
+        
     }
 
-    computeMsg(){
+    computeMsg(ID){ 
+    // ID is either right left down or up
     //   compute msg right, up, left and down
+        this.beliefUpdate();
+        if(ID == -1){
+            this.out_eta = 0;
+            this.out_lambda_prime = 0;
+            return;
+        }
+        var eta_inward = factorNodes[ID].getEta();
+        var lambda_prime_inward = factorNodes[ID].getLambdaPrime();
+
+        this.out_eta = this.out_eta - eta_inward;
+        this.out_lambda_prime = this.out_lambda_prime - lambda_prime_inward;
     }
 }
 

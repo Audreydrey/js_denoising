@@ -1,4 +1,5 @@
-const { inv, matrix, size, multiply, transpose, sqrt, ones, zeros } = require('mathjs');
+const { clone, inv, matrix, size, multiply, 
+    transpose, sqrt, ones, zeros } = require('mathjs');
 const { exit } = require('process');
 
 
@@ -15,19 +16,35 @@ for(var i = 10000 ; i < 20000; i++){
     noisySignal[i] = 0;
 }
 
-// assign altered pixel values to original image
-noisyImg.data = noisySignal;
+// assign altered pixel values to original image (don't need to)
+// noisyImg.data = noisySignal;
 
 // out put image
 putImgData("out.png", noisyImg);
 
-var J = [[1, 0]];
-var JT = sqrt(transpose(J));
 
-console.log( multiply(JT, J));
 
-var test = 5;
-console.log(transpose(test))
+// var J = matrix([[1, 0]]);
+// var JT = sqrt(transpose(J));
+// var output = multiply(0.5, multiply(JT, J));
+// console.log(output)
+// var d = clone(output._data);
+// d[0][0] = 100;
+// console.log(output._data);
+// console.log(multiply(0.5, output._data))
+// console.log(transpose(output._data));
+
+// var test = 5;
+// console.log(transpose(test));
+// console.log(inv(5));
+
+var t = [[1,0], [2,3]];
+var x = clone(t);
+x[0][0] = 100;
+console.log(t);
+
+
+
 
 // var lambdaIn = [[0.5]];
 
@@ -70,7 +87,7 @@ function  putImgData(name, png){
 
     var options = { colorType: 6 };
     var buffer = PNG.sync.write(png, options);
-    fs.writeFileSync('output' + name, buffer);
+    fs.writeFileSync('output/' + name, buffer);
 }
 
 
@@ -105,8 +122,8 @@ class VariableNode{
     }
 
     beliefUpdate(){
-        var eta_here = matrix([[0.0]])
-        var lambda_prime_here = matrix([[0.0]])
+        var eta_here = 0.0
+        var lambda_prime_here = 0.0
         var factorIDs = [this.priorID, this.leftID, this.rightID, this.upID, this.downID]
 
         var fID;
@@ -151,7 +168,7 @@ class MeasurementNode{
     constructor(factorID, z, lambdaIn, variableID){
         this.factorID = factorID;
         this.z = z; //pixel value
-        this.lambdaIn = lambdaIn;
+        this.lambdaIn = lambdaIn; //should be scalar
 
         var J = 1.0;
         // var JT = transpose(J);
@@ -160,7 +177,7 @@ class MeasurementNode{
         this.lambdaPrime = lambdaIn;
         this.variableID = variableID;
         this.N_sigma = sqrt(lambdaIn);
-        this.variableEta =this.eta;
+        this.variableEta = this.eta;
         this.variableLambdaPrime = this.lambdaPrime;
     }
 
@@ -202,11 +219,11 @@ class SmoothnessNode{
         // has the same form
         this.lambdaIn = lambdaIn;
         this.eta = [[0], [0]];
-        this.lambdaPrime = lambdaIn * multiply(transpose(J), J);
+        this.lambda_prime = multiply(lambdaIn, multiply(transpose(J), J)); 
 
         // variable messages:
-        this.variable_eta = [[0, 0]];
-        this.variable_lambda = [[0, 0]];
+        this.variable_eta = 0.0;
+        this.variable_lambda = 0.0;
 
         // IDs of left and right variable nodes:
         this.prevID = prevID;
@@ -223,8 +240,8 @@ class SmoothnessNode{
     }
 
     computeHuberScale(){
-        var h =  variableNodes[this.prevID] - variableNodes[this.afterID];
-        var ms = sqrt(this.lambdaIn * h);
+        var h =  variableNodes[this.prevID].getMu() - variableNodes[this.afterID].getMu();
+        var ms = sqrt(this.lambdaIn * h ** 2);
         if (ms > this.N_sigma){
             kr = 2 * this.N_sigma / ms - (this.N_sigma ** 2) / (ms ** 2);
             return kr;
@@ -234,33 +251,37 @@ class SmoothnessNode{
 
     //  specify if it is msg to after node or prev
     computeMsg(isAfter){
+        var idx1 = 1;
+        var idx2 = 0;
         var inwardID = this.afterID;
-        if(isAfter) {
+        if(isAfter == 0) {
+            idx1 = 0;
+            idx2 = 1;
             inwardID = this.prevID;
         }
         var inwardEta = variableNodes[inwardID].getEta();
         var inwardLambda = variableNodes[inwardID].getLambdaPrime();
 
-        var kr = this.computeHuberScale()
-        var eta = this.eta;
-        lambda_prime = np.copy(self.lambda_prime)
+        var kr = this.computeHuberScale();
+        var eta = clone(this.eta);
+        var lambda_prime = clone(this.lambda_prime);
 
         // left is the first variable in eta and i want to marginalise out the second one (right)
-        eta[1] = self.eta[1] + inwardEta
-        lambda_prime[1][1] = self.lambda_prime[1][1] + inwardLambda
+        eta[idx1] = this.eta[idx1] + inwardEta;
+        lambda_prime[idx1][idx1] = this.lambda_prime[idx1][idx1] + inwardLambda;
 
-        eta = eta * k_R
-        lambda_prime = lambda_prime * k_R
+        eta = multiply(this.eta, kr);
+        lambda_prime = multiply(lambda_prime, kr);
 
-        eta_a = eta[0]
-        eta_b = eta[1]
-        lambda_aa = lambda_prime[0][0]
-        lambda_ab = lambda_prime[0][1]
-        lambda_ba = lambda_prime[1][0]
-        lambda_bb = lambda_prime[1][1]
+        var eta_a = eta[idx2];
+        var eta_b = eta[idx1];
+        var lambda_aa = lambda_prime[idx2][idx2];
+        var lambda_ab = lambda_prime[idx2][idx1];
+        var lambda_ba = lambda_prime[idx1][idx2];
+        var lambda_bb = lambda_prime[idx1][idx1];
 
-        self.variable_eta = np.array([eta_a - lambda_ab * 1.0 / lambda_bb * eta_b])
-        self.variable_lambda = np.array([lambda_aa - lambda_ab * 1.0 / lambda_bb * lambda_ba])
+        this.variable_eta = eta_a - lambda_ab / lambda_bb * eta_b;
+        this.variable_lambda = lambda_aa - lambda_ab / lambda_bb * lambda_ba;
 
     }
 

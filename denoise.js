@@ -127,8 +127,6 @@ class MeasurementNode{
         this.N_sigma = sqrt(lambdaIn[0][0]);
         this.variableEta =this.eta;
         this.variableLambdaPrime = this.lambdaPrime;
-
-        // console.log(transpose(J).toString()) // 2i
     }
 
     computeHuberscale(){
@@ -156,5 +154,41 @@ class MeasurementNode{
         return this.variableLambdaPrime;
     }
 
+
+}
+
+class SmoothnessNode{
+    constructor(factorID, lambdaIn, prevID, afterID){
+        this.factorID = factorID;
+        var J = [[-1, -1]];
+        // J transpose * lambda * [ [-1, 1].T * [x1, x2] + 0 - (x2 - x1) ] = J.T * lambda * 0.
+        // left is eta[0] and right is eta[1].
+        // These never get changed because they do not depend on the input variables so linearisation always
+        // has the same form
+        this.lambdaIn = lambdaIn;
+        this.eta = [[0, 0]];
+        this.lambdaPrime = lambdaIn * multiply(transpose(J), J);
+
+        // variable messages:
+        this.variable_eta = [[0, 0]];
+        this.variable_lambda = [[0, 0]];
+
+        // IDs of left and right variable nodes:
+        this.prevID = prevID;
+        this.afterID = afterID;
+        this.N_sigma  = sqrt(lambdaIn);
+    }
+
+    getEta(){
+        return this.eta;
+    }
+
+    getLambdaPrime(){
+        return this.variable_lambda;
+    }
+
+    computeHuberScale(){
+        // var h =
+    }
 
 }

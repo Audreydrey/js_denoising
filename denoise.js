@@ -250,11 +250,12 @@ class SmoothnessNode{
     }
 
     //  specify if it is msg to after node or prev
-    computeMsg(isAfter){
+    computeMsgHelper(isAfter){
+        // if prev 
         var idx1 = 1;
         var idx2 = 0;
         var inwardID = this.afterID;
-        if(isAfter == 0) {
+        if(isAfter) {
             idx1 = 0;
             idx2 = 1;
             inwardID = this.prevID;
@@ -283,6 +284,13 @@ class SmoothnessNode{
         this.variable_eta = eta_a - lambda_ab / lambda_bb * eta_b;
         this.variable_lambda = lambda_aa - lambda_ab / lambda_bb * lambda_ba;
 
+    }
+
+    // after = right &down  prev = up & left
+    computeMsg(isAfter){
+        if(this.afterID - this.prevID > 0){
+            this.computeMsgHelper(isAfter);
+        }
     }
 
 }

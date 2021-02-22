@@ -1,93 +1,66 @@
-const { clone, inv, matrix, size, multiply, 
+const { min, max, clone, inv, matrix, size, multiply, 
     transpose, sqrt, ones, zeros } = require('mathjs');
 const { exit } = require('process');
 
 
-// -------------example of reading, altering and writing images
-// get image data including meta data
-var noisyImg = getImgData("rose.png");
-
-// get pixel values
-var noisySignal = noisyImg.data;
-console.log(noisySignal[100]);
-
-// alter pixel values
-for(var i = 10000 ; i < 20000; i++){
-    noisySignal[i] = 0;
+class rec{
+    constructor(h, w){
+        this.h = h;
+        this.w = w;
+    }
+    get height(){
+        return this.h;
+    }
 }
 
-// assign altered pixel values to original image (don't need to)
-// noisyImg.data = noisySignal;
-
-// out put image
-putImgData("out.png", noisyImg);
-
-
-
-// var J = matrix([[1, 0]]);
-// var JT = sqrt(transpose(J));
-// var output = multiply(0.5, multiply(JT, J));
-// console.log(output)
-// var d = clone(output._data);
-// d[0][0] = 100;
-// console.log(output._data);
-// console.log(multiply(0.5, output._data))
-// console.log(transpose(output._data));
-
-// var test = 5;
-// console.log(transpose(test));
-// console.log(inv(5));
-
-var t = [[1,0], [2,3]];
-var x = clone(t);
-x[0][0] = 100;
-console.log(t);
+var r = new rec(10,20);
+console.log(r.height);
+console.log(r.h);
 
 
 
 
-// var lambdaIn = [[0.5]];
 
+// get image data including meta data (4 channels)
+var noisyImg = getImgData("rose.png");
 
+// reduce pixel values to 1 channel
+var noisySignal = getSingleCh(noisyImg.data, noisyImg.height*noisyImg.width); // buffer
 
-// var eta = multiply(multiply(JT, lambdaIn), 18);
-// var m1 = ones(size(eta));
-// console.log(m1);
+function getSingleCh(buffer4Ch, imgSize){
+    var noisySignal = new Buffer.alloc(imgSize); //buffer
+    for (var i = 0; i < imgSize; i ++){
+         noisySignal[i] = buffer4Ch[4 * i];
+    }
+    return noisySignal;
+}
 
-
-
-// var t = [0,1];
-// console.log(t[1]);
-// var t_copy = t.concat(); //cat only copy 1 d array
-// t_copy[1] = -9;
-
-// console.log(t[1]);
-
-
-
-
-var variableNodes = [];
-
-var factorNodes = [];
 
 // name within input folder
 function  getImgData(name){
     var fs = require("fs");
 
     var  PNG = require("pngjs").PNG;
+    var options = {inputHasAlpha:false}
 
-    var data = fs.readFileSync("input/" + name);
-    return PNG.sync.read(data);
+    var data = fs.readFileSync("input/" + name), options;
+    var noisyImg =  PNG.sync.read(data, options);
+
+    console.log("===> image width : " + noisyImg.width);
+    console.log("===> image height : " +noisyImg.height);
+    console.log("===> image color : " + noisyImg.color);
+    console.log("===> image has alpha : " + noisyImg.alpha);
+    console.log("----image loading complete----");
+    return noisyImg;
 }
 
 function  putImgData(name, png){
     var fs = require("fs");
-
     var  PNG = require("pngjs").PNG;
 
-    var options = { colorType: 6 };
+    var options = { inputColorType:0, colorType: 0, inputHasAlpha:false};
     var buffer = PNG.sync.write(png, options);
-    fs.writeFileSync('output/' + name, buffer);
+    fs.writeFileSync('output/' + name, buffer, options);
 }
 
 
@@ -294,3 +267,47 @@ class SmoothnessNode{
     }
 
 }
+
+var variableNodes = [];
+var factorNodes = [];
+
+var imgHeight = noisyImg.height;
+var imgWidth = noisyImg.width;
+
+for (var i = 0; i < imgHeight; i++){
+    for (var j = 0; j < imgWidth; j++){
+        var varID = i * imgHeight + j;
+        var upID = -1;
+        var downID = -1;
+        var leftID = -1;
+        var rightID = -1;
+
+        // ID for 4 dir containing varID and factorNode ID
+        // the first ID is smaller
+        if(i - 1 >= 0){
+            var up = (i - 1) * imgWidth + j;
+            upID = [min(up, varID), max(up, varID)];
+        }
+        if (i + 1 < imgHeight){
+            var down = (i + 1) * imgWidth + j;
+            downID = [min(down, varID), max(down, varID)];
+        }
+        if(j - 1 >= 0){
+            var left = i * imgWidth + j - 1;
+            leftID = [min(left, varID), max(left, varID)];
+        }
+        if (j + 1 < imgWidth){
+            var right = i * imgWidth + j + 1;
+            rightID = [min(right, varID), max(right, varID)];
+        }
+        // variableNodes[varID] = 
+    
+
+
+    }
+}
+
+
+// out put image
+noisyImg.data = noisySignal;
+putImgData("out.png", noisyImg);

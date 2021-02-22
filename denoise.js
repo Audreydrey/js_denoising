@@ -3,24 +3,6 @@ const { min, max, clone, inv, matrix, size, multiply,
 const { exit } = require('process');
 
 
-class rec{
-    constructor(h, w){
-        this.h = h;
-        this.w = w;
-    }
-    get height(){
-        return this.h;
-    }
-}
-
-var r = new rec(10,20);
-console.log(r.height);
-console.log(r.h);
-
-
-
-
-
 // get image data including meta data (4 channels)
 var noisyImg = getImgData("rose.png");
 
@@ -34,7 +16,6 @@ function getSingleCh(buffer4Ch, imgSize){
     }
     return noisySignal;
 }
-
 
 // name within input folder
 function  getImgData(name){
@@ -268,15 +249,20 @@ class SmoothnessNode{
 
 }
 
-var variableNodes = [];
-var factorNodes = [];
+var SIGMAMeas = 1;
+var lambdaMeas = 1 / SIGMAMeas ** 2;
+var SIGMASmooth = 0.3;
+var lambdaSmooth = 1 / SIGMASmooth ** 2;
+
+var variableNodes = {};
+var factorNodes = {};
 
 var imgHeight = noisyImg.height;
 var imgWidth = noisyImg.width;
 
 for (var i = 0; i < imgHeight; i++){
     for (var j = 0; j < imgWidth; j++){
-        var varID = i * imgHeight + j;
+        var varID = i * imgWidth + j;
         var upID = -1;
         var downID = -1;
         var leftID = -1;
@@ -300,12 +286,42 @@ for (var i = 0; i < imgHeight; i++){
             var right = i * imgWidth + j + 1;
             rightID = [min(right, varID), max(right, varID)];
         }
-        // variableNodes[varID] = 
-    
+        variableNodes[varID] = new VariableNode(varID, 0, 0, varID,
+            leftID, rightID, upID, downID);
+
+        factorNodes[varID] = new MeasurementNode(varID, 
+            noisySignal[i * imgWidth + j], lambdaMeas, varID);
+
+        if(leftID != -1 && factorNodes[leftID] == null){
+            factorNodes[leftID] = new SmoothnessNode(leftID,
+                lambdaSmooth, leftID[0], leftID[1]);
+        }
+        if(rightID != -1 && factorNodes[rightID] == null){
+            factorNodes[rightID] = new SmoothnessNode(rightID,
+                lambdaSmooth, rightID[0], rightID[1]);
+        }
+        if(upID != -1 && factorNodes[upID] == null){
+            factorNodes[upID] = new SmoothnessNode(leftID,
+                lambdaSmooth, upID[0], upID[1]);
+        }
+        if(downID != -1 && factorNodes[downID] == null){
+            factorNodes[downID] = new SmoothnessNode(downID,
+                lambdaSmooth, downID[0], downID[1]);
+        }
+
 
 
     }
 }
+
+
+// console.log(num);
+// console.log(imgHeight * imgWidth);
+// console.log(Object.keys(factorNodes).length); 
+// console.log(factorNodes[100].variableID); 
+// console.log(factorNodes[100].lambdaIn); 
+
+// console.log(factorNodes[173280] == null); // true
 
 
 // out put image

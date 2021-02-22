@@ -79,25 +79,38 @@ class VariableNode{
         var eta_here = 0.0
         var lambda_prime_here = 0.0
         var factorIDs = [this.priorID, this.leftID, this.rightID, this.upID, this.downID]
-
+        // checked
+        // console.log(factorIDs)
         var fID;
         for (fID in factorIDs) {
             //  sometimes i don't have a factor to my left or right and this id is set to -1
-            if (fID != -1){
-                eta_here += factorNodes[fID].getEta();
-                lambda_prime_here += factorNodes[fID].getLambdaPrime();
+            if (factorIDs[fID] != -1){
+                eta_here += factorNodes[factorIDs[fID]].getEta();
+                lambda_prime_here += factorNodes[factorIDs[fID]].getLambdaPrime();
             }
+            // checked
+            // if(this.variableID < 10){
+            //     console.log(this.variableID);
+            //     console.log(eta_here)
+            //     console.log(lambda_prime_here)
+            // }
         }
             
         if (lambda_prime_here == 0.0){
             console.log('Lambda prime is zero in belief update, something is wrong');
             exit(0);
         }
-
+        
+        // checked
+        // console.log(eta_here);
         this.sigma = inv(lambda_prime_here);
+        // console.log(this.sigma);
         this.mu = multiply(this.sigma, eta_here);
-        this.out_eta = eta_here;
+        // console.log(this.mu);
+        this.out_eta = eta_here;;
+        // console.log(this.out_eta);
         this.out_lambda_prime = lambda_prime_here;
+        // console.log(this.out_lambda_prime);
         
     }
 
@@ -140,13 +153,18 @@ class MeasurementNode{
         var ms = sqrt(h * this.lambdaIn * h);
         if(ms > this.N_sigma){
             var k_r = (2 * this.N_sigma) / ms - this.N_sigma ** 2 / (ms ** 2);
+        // kr checked
+            // if(this.factorID < 100){
+            //     console.log(this.factorID);
+            //     console.log(k_r)
+            // }
             return k_r;
         }else{
             return 1;
         }
     }
 
-    computeMessage(){
+    computeMsg(){
         var kr = this.computeHuberscale();
         this.variableEta = this.eta * kr;
         this.variableLambdaPrime = this.lambdaPrime * kr;
@@ -186,7 +204,7 @@ class SmoothnessNode{
     }
 
     getEta(){
-        return this.eta;
+        return this.variable_eta;
     }
 
     getLambdaPrime(){
@@ -197,7 +215,7 @@ class SmoothnessNode{
         var h =  variableNodes[this.prevID].getMu() - variableNodes[this.afterID].getMu();
         var ms = sqrt(this.lambdaIn * h ** 2);
         if (ms > this.N_sigma){
-            kr = 2 * this.N_sigma / ms - (this.N_sigma ** 2) / (ms ** 2);
+            var kr = 2 * this.N_sigma / ms - (this.N_sigma ** 2) / (ms ** 2);
             return kr;
         }
         return 1;
@@ -309,8 +327,6 @@ for (var i = 0; i < imgHeight; i++){
                 lambdaSmooth, downID[0], downID[1]);
         }
 
-
-
     }
 }
 
@@ -318,12 +334,110 @@ for (var i = 0; i < imgHeight; i++){
 // console.log(num);
 // console.log(imgHeight * imgWidth);
 // console.log(Object.keys(factorNodes).length); 
-// console.log(factorNodes[100].variableID); 
-// console.log(factorNodes[100].lambdaIn); 
+// console.log(factorNodes[100].variableID); // 100
+// console.log(factorNodes[100].lambdaIn); // 1
 
 // console.log(factorNodes[173280] == null); // true
+var mu = new Buffer.alloc(imgHeight * imgWidth);
+var iter_num = 0;
+console.log(noisySignal[100]);
+console.log(factorNodes[100]);
+
+
+while(iter_num < 1) {
+    console.log('iteration : ' + iter_num);
+    iter_num++;
+
+    // send msg from measurement factor
+    for(key in factorNodes){
+        if(! key.includes(',')){
+            factorNodes[key].computeMsg();
+        }
+    }
+
+
+    // for each variable nodes: update belief in computeMsg 
+    // for each smoothness nodes: computeMsg
+    // for each measurement nodes : computeMsg
+    // in 4 dir
+
+    //-------------UP-----------
+    for(key in variableNodes){
+        variableNodes[key].computeMsg(variableNodes[key].upID);
+    }
+    for(key in factorNodes){ //smothness
+        if(key.includes(',')){
+            factorNodes[key].computeMsg(false); //up is not after
+        }
+    }
+    for(key in factorNodes){ //measurement
+        if(! key.includes(',')){
+            factorNodes[key].computeMsg();
+        }
+    }
+
+    //-------------RIGHT-----------
+    // for(key in variableNodes){
+    //     variableNodes[key].computeMsg(variableNodes[key].rightID);
+    // }
+    // for(key in factorNodes){ //smothness
+    //     if(key.includes(',')){
+    //         factorNodes[key].computeMsg(true); //right is after
+    //     }
+    // }
+    // for(key in factorNodes){ //measurement
+    //     if(! key.includes(',')){
+    //         factorNodes[key].computeMsg();
+    //     }
+    // }
+
+    // //-------------DOWN-----------
+    // for(key in variableNodes){
+    //     variableNodes[key].computeMsg(variableNodes[key].downID);
+    // }
+    // for(key in factorNodes){ //smothness
+    //     if(key.includes(',')){
+    //         factorNodes[key].computeMsg(true); //down is after
+    //     }
+    // }
+    // for(key in factorNodes){ //measurement
+    //     if(! key.includes(',')){
+    //         factorNodes[key].computeMsg();
+    //     }
+    // }
+
+    // //-------------LEFT-----------
+    // for(key in variableNodes){
+    //     variableNodes[key].computeMsg(variableNodes[key].leftID);
+    // }
+    // for(key in factorNodes){ //smothness
+    //     if(key.includes(',')){
+    //         factorNodes[key].computeMsg(false); //left is not after
+    //     }
+    // }
+    // for(key in factorNodes){ //measurement
+    //     if(! key.includes(',')){
+    //         factorNodes[key].computeMsg();
+    //     }
+    // }
+
+    // -----------belief update--------
+    for(key in variableNodes){
+        variableNodes[key].beliefUpdate();
+    }
+
+}
+
+for(i in Object.keys(variableNodes)){ // i : idx from 0 to imgSize
+    mu[i] = variableNodes[i].getMu(); //mu :buffer of new img.
+    // console.log(mu[i]);
+} 
+
+console.log(mu)
+console.log(noisySignal)
+
 
 
 // out put image
-noisyImg.data = noisySignal;
+noisyImg.data = mu;
 putImgData("out.png", noisyImg);

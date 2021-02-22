@@ -340,11 +340,11 @@ for (var i = 0; i < imgHeight; i++){
 // console.log(factorNodes[173280] == null); // true
 var mu = new Buffer.alloc(imgHeight * imgWidth);
 var iter_num = 0;
-console.log(noisySignal[100]);
-console.log(factorNodes[100]);
+// console.log(noisySignal[100]);
+// console.log(factorNodes[100]);
 
 
-while(iter_num < 1) {
+while(iter_num < 10) {
     console.log('iteration : ' + iter_num);
     iter_num++;
 
@@ -365,11 +365,11 @@ while(iter_num < 1) {
     for(key in variableNodes){
         variableNodes[key].computeMsg(variableNodes[key].upID);
     }
-    for(key in factorNodes){ //smothness
-        if(key.includes(',')){
-            factorNodes[key].computeMsg(false); //up is not after
-        }
-    }
+    // for(key in factorNodes){ //smothness
+    //     if(key.includes(',')){
+    //         factorNodes[key].computeMsg(false); //up is not after
+    //     }
+    // }
     for(key in factorNodes){ //measurement
         if(! key.includes(',')){
             factorNodes[key].computeMsg();
@@ -377,49 +377,49 @@ while(iter_num < 1) {
     }
 
     //-------------RIGHT-----------
-    // for(key in variableNodes){
-    //     variableNodes[key].computeMsg(variableNodes[key].rightID);
-    // }
+    for(key in variableNodes){
+        variableNodes[key].computeMsg(variableNodes[key].rightID);
+    }
     // for(key in factorNodes){ //smothness
     //     if(key.includes(',')){
     //         factorNodes[key].computeMsg(true); //right is after
     //     }
     // }
-    // for(key in factorNodes){ //measurement
-    //     if(! key.includes(',')){
-    //         factorNodes[key].computeMsg();
-    //     }
-    // }
+    for(key in factorNodes){ //measurement
+        if(! key.includes(',')){
+            factorNodes[key].computeMsg();
+        }
+    }
 
     // //-------------DOWN-----------
-    // for(key in variableNodes){
-    //     variableNodes[key].computeMsg(variableNodes[key].downID);
-    // }
+    for(key in variableNodes){
+        variableNodes[key].computeMsg(variableNodes[key].downID);
+    }
     // for(key in factorNodes){ //smothness
     //     if(key.includes(',')){
     //         factorNodes[key].computeMsg(true); //down is after
     //     }
     // }
-    // for(key in factorNodes){ //measurement
-    //     if(! key.includes(',')){
-    //         factorNodes[key].computeMsg();
-    //     }
-    // }
+    for(key in factorNodes){ //measurement
+        if(! key.includes(',')){
+            factorNodes[key].computeMsg();
+        }
+    }
 
     // //-------------LEFT-----------
-    // for(key in variableNodes){
-    //     variableNodes[key].computeMsg(variableNodes[key].leftID);
-    // }
+    for(key in variableNodes){
+        variableNodes[key].computeMsg(variableNodes[key].leftID);
+    }
     // for(key in factorNodes){ //smothness
     //     if(key.includes(',')){
     //         factorNodes[key].computeMsg(false); //left is not after
     //     }
     // }
-    // for(key in factorNodes){ //measurement
-    //     if(! key.includes(',')){
-    //         factorNodes[key].computeMsg();
-    //     }
-    // }
+    for(key in factorNodes){ //measurement
+        if(! key.includes(',')){
+            factorNodes[key].computeMsg();
+        }
+    }
 
     // -----------belief update--------
     for(key in variableNodes){
@@ -433,8 +433,8 @@ for(i in Object.keys(variableNodes)){ // i : idx from 0 to imgSize
     // console.log(mu[i]);
 } 
 
-console.log(mu)
-console.log(noisySignal)
+// console.log(mu)
+// console.log(noisySignal)
 
 
 

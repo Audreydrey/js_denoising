@@ -184,15 +184,15 @@ class MeasurementNode{
 class SmoothnessNode{
     constructor(factorID, lambdaIn, prevID, afterID){
         this.factorID = factorID;
-        var J = [[-1, -1]];
+        var J = [[-1, 1]];
         // J transpose * lambda * [ [-1, 1].T * [x1, x2] + 0 - (x2 - x1) ] = J.T * lambda * 0.
         // left is eta[0] and right is eta[1].
         // These never get changed because they do not depend on the input variables so linearisation always
         // has the same form
         this.lambdaIn = lambdaIn;
         this.eta = [[0], [0]];
-        this.lambda_prime = multiply(lambdaIn, multiply(transpose(J), J)); 
-
+        this.lambda_prime = multiply(multiply(transpose(J), lambdaIn), J); 
+        
         // variable messages:
         this.variable_eta = 0.0;
         this.variable_lambda = 0.0;
@@ -200,6 +200,12 @@ class SmoothnessNode{
         // IDs of left and right variable nodes:
         this.prevID = prevID;
         this.afterID = afterID;
+        // if(prevID < 10){
+        //     console.log(this.lambda_prime);
+        //     console.log(prevID)
+        //     console.log(afterID)
+        // }
+ 
         this.N_sigma  = sqrt(lambdaIn);
     }
 
@@ -216,6 +222,11 @@ class SmoothnessNode{
         var ms = sqrt(this.lambdaIn * h ** 2);
         if (ms > this.N_sigma){
             var kr = 2 * this.N_sigma / ms - (this.N_sigma ** 2) / (ms ** 2);
+
+            // if(this.factorID[0] < 10){
+            //     console.log(this.factorID)
+            //     console.log(kr)
+            // }
             return kr;
         }
         return 1;
@@ -240,14 +251,20 @@ class SmoothnessNode{
         var lambda_prime = clone(this.lambda_prime);
 
         // left is the first variable in eta and i want to marginalise out the second one (right)
-        eta[idx1] = this.eta[idx1] + inwardEta;
+        eta[idx1][0] = this.eta[idx1][0] + inwardEta;
         lambda_prime[idx1][idx1] = this.lambda_prime[idx1][idx1] + inwardLambda;
+        // console.log(inwardEta)
+        // console.log(this.eta[idx1])
 
-        eta = multiply(this.eta, kr);
+        // console.log(eta)
+        // console.log(this.eta)
+        eta = multiply(eta, kr);
+
+        // console.log(eta)
         lambda_prime = multiply(lambda_prime, kr);
 
-        var eta_a = eta[idx2];
-        var eta_b = eta[idx1];
+        var eta_a = eta[idx2][0];
+        var eta_b = eta[idx1][0];
         var lambda_aa = lambda_prime[idx2][idx2];
         var lambda_ab = lambda_prime[idx2][idx1];
         var lambda_ba = lambda_prime[idx1][idx2];
@@ -259,10 +276,13 @@ class SmoothnessNode{
     }
 
     // after = right &down  prev = up & left
-    computeMsg(isAfter){
-        if(this.afterID - this.prevID > 0){
+    computeMsg(isAfter, horizontal){
+        if(horizontal && this.afterID - this.prevID == 1){
+            this.computeMsgHelper(isAfter);
+        } else if((!horizontal) && (this.afterID - this.prevID > 1)){
             this.computeMsgHelper(isAfter);
         }
+        
     }
 
 }
@@ -313,18 +333,22 @@ for (var i = 0; i < imgHeight; i++){
         if(leftID != -1 && factorNodes[leftID] == null){
             factorNodes[leftID] = new SmoothnessNode(leftID,
                 lambdaSmooth, leftID[0], leftID[1]);
+                // console.log(leftID) 
         }
         if(rightID != -1 && factorNodes[rightID] == null){
             factorNodes[rightID] = new SmoothnessNode(rightID,
                 lambdaSmooth, rightID[0], rightID[1]);
+            // console.log(rightID)
         }
         if(upID != -1 && factorNodes[upID] == null){
-            factorNodes[upID] = new SmoothnessNode(leftID,
+            factorNodes[upID] = new SmoothnessNode(upID,
                 lambdaSmooth, upID[0], upID[1]);
+            // console.log(upID)
         }
         if(downID != -1 && factorNodes[downID] == null){
             factorNodes[downID] = new SmoothnessNode(downID,
                 lambdaSmooth, downID[0], downID[1]);
+            // console.log(downID)
         }
 
     }
@@ -344,7 +368,7 @@ var iter_num = 0;
 // console.log(factorNodes[100]);
 
 
-while(iter_num < 10) {
+while(iter_num < 20) {
     console.log('iteration : ' + iter_num);
     iter_num++;
 
@@ -365,11 +389,11 @@ while(iter_num < 10) {
     for(key in variableNodes){
         variableNodes[key].computeMsg(variableNodes[key].upID);
     }
-    // for(key in factorNodes){ //smothness
-    //     if(key.includes(',')){
-    //         factorNodes[key].computeMsg(false); //up is not after
-    //     }
-    // }
+    for(key in factorNodes){ //smothness
+        if(key.includes(',')){
+            factorNodes[key].computeMsg(false, false); //up is not after
+        }
+    }
     for(key in factorNodes){ //measurement
         if(! key.includes(',')){
             factorNodes[key].computeMsg();
@@ -380,11 +404,11 @@ while(iter_num < 10) {
     for(key in variableNodes){
         variableNodes[key].computeMsg(variableNodes[key].rightID);
     }
-    // for(key in factorNodes){ //smothness
-    //     if(key.includes(',')){
-    //         factorNodes[key].computeMsg(true); //right is after
-    //     }
-    // }
+    for(key in factorNodes){ //smothness
+        if(key.includes(',')){
+            factorNodes[key].computeMsg(true, true); //right is after
+        }
+    }
     for(key in factorNodes){ //measurement
         if(! key.includes(',')){
             factorNodes[key].computeMsg();
@@ -395,11 +419,11 @@ while(iter_num < 10) {
     for(key in variableNodes){
         variableNodes[key].computeMsg(variableNodes[key].downID);
     }
-    // for(key in factorNodes){ //smothness
-    //     if(key.includes(',')){
-    //         factorNodes[key].computeMsg(true); //down is after
-    //     }
-    // }
+    for(key in factorNodes){ //smothness
+        if(key.includes(',')){
+            factorNodes[key].computeMsg(true, false); //down is after
+        }
+    }
     for(key in factorNodes){ //measurement
         if(! key.includes(',')){
             factorNodes[key].computeMsg();
@@ -410,11 +434,11 @@ while(iter_num < 10) {
     for(key in variableNodes){
         variableNodes[key].computeMsg(variableNodes[key].leftID);
     }
-    // for(key in factorNodes){ //smothness
-    //     if(key.includes(',')){
-    //         factorNodes[key].computeMsg(false); //left is not after
-    //     }
-    // }
+    for(key in factorNodes){ //smothness
+        if(key.includes(',')){
+            factorNodes[key].computeMsg(false, true); //left is not after
+        }
+    }
     for(key in factorNodes){ //measurement
         if(! key.includes(',')){
             factorNodes[key].computeMsg();

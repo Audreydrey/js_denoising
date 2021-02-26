@@ -4,7 +4,7 @@ const { exit } = require('process');
 
 
 // get image data including meta data (4 channels)
-var noisyImg = getImgData("rose.png");
+var noisyImg = getImgData("glasses-crop.png");
 
 // reduce pixel values to 1 channel
 var noisySignal = getSingleCh(noisyImg.data, noisyImg.height*noisyImg.width); // buffer
@@ -13,6 +13,7 @@ function getSingleCh(buffer4Ch, imgSize){
     var noisySignal = new Buffer.alloc(imgSize); //buffer
     for (var i = 0; i < imgSize; i ++){
          noisySignal[i] = buffer4Ch[4 * i];
+        //  console.log(noisySignal[i]); //only integer values
     }
     return noisySignal;
 }
@@ -368,7 +369,7 @@ var iter_num = 0;
 // console.log(factorNodes[100]);
 
 
-while(iter_num < 20) {
+while(iter_num < 10) {
     console.log('iteration : ' + iter_num);
     iter_num++;
 
@@ -460,7 +461,7 @@ for(i in Object.keys(variableNodes)){ // i : idx from 0 to imgSize
 // console.log(mu)
 // console.log(noisySignal)
 
-
+// console.log(mu);
 
 // out put image
 noisyImg.data = mu;

@@ -1,10 +1,10 @@
 const { min, max, clone, inv, matrix, size, multiply, 
-    transpose, sqrt, ones, zeros } = require('mathjs');
+    transpose, sqrt, ones, zeros, round} = require('mathjs');
 const { exit } = require('process');
 
 
 // get image data including meta data (4 channels)
-var noisyImg = getImgData("glasses-crop.png");
+var noisyImg = getImgData("glasses-large.png");
 
 // reduce pixel values to 1 channel
 var noisySignal = getSingleCh(noisyImg.data, noisyImg.height*noisyImg.width); // buffer
@@ -13,6 +13,8 @@ function getSingleCh(buffer4Ch, imgSize){
     var noisySignal = new Buffer.alloc(imgSize); //buffer
     for (var i = 0; i < imgSize; i ++){
          noisySignal[i] = buffer4Ch[4 * i];
+        // noisySignal.writeDoubleBE(buffer4Ch.readDoubleBE(i), );
+        
         //  console.log(noisySignal[i]); //only integer values
     }
     return noisySignal;
@@ -23,16 +25,20 @@ function  getImgData(name){
     var fs = require("fs");
 
     var  PNG = require("pngjs").PNG;
-    var options = {inputHasAlpha:false}
+    var options = {bitDepth:16, inputHasAlpha:false}
 
-    var data = fs.readFileSync("input/" + name), options;
+    var data = fs.readFileSync("input/" + name);
+    // console.log(data);
     var noisyImg =  PNG.sync.read(data, options);
+    // console.log(noisyImg.data)
 
     console.log("===> image width : " + noisyImg.width);
     console.log("===> image height : " +noisyImg.height);
     console.log("===> image color : " + noisyImg.color);
     console.log("===> image has alpha : " + noisyImg.alpha);
+    console.log("===> image data : " + (noisyImg.data.length));
     console.log("----image loading complete----");
+
     return noisyImg;
 }
 
@@ -369,7 +375,7 @@ var iter_num = 0;
 // console.log(factorNodes[100]);
 
 
-while(iter_num < 10) {
+while(iter_num < 20) {
     console.log('iteration : ' + iter_num);
     iter_num++;
 
@@ -454,8 +460,9 @@ while(iter_num < 10) {
 }
 
 for(i in Object.keys(variableNodes)){ // i : idx from 0 to imgSize
-    mu[i] = variableNodes[i].getMu(); //mu :buffer of new img.
-    // console.log(mu[i]);
+    mu[i] = round(variableNodes[i].getMu()); //mu :buffer of new img.
+    // console.log(variableNodes[i].getMu());
+    // console.log(mu[i])
 } 
 
 // console.log(mu)

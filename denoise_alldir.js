@@ -343,7 +343,7 @@ while(iter_num < 10) {
 
 // output image
     noisyImg.data = mu;
-    putImgData("out"+ iter_num+".png", noisyImg);
+    putImgData("out_alldir"+ iter_num+".png", noisyImg);
 }
 
 

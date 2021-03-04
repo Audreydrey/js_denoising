@@ -183,7 +183,7 @@ class SmoothnessNode{
         this.prevID = prevID;
         this.afterID = afterID;
  
-        this.N_sigma  = sqrt(lambdaIn);
+        this.N_sigma  = sqrt(lambdaIn) * 2;
     }
 
     getEtaPrev(){
@@ -258,7 +258,7 @@ class SmoothnessNode{
 
 var SIGMAMeas = 1;
 var lambdaMeas = 1 / SIGMAMeas ** 2;
-var SIGMASmooth = 0.3;
+var SIGMASmooth = 0.2;
 var lambdaSmooth = 1 / SIGMASmooth ** 2;
 
 var variableNodes = {};
@@ -335,15 +335,13 @@ while(iter_num < 10) {
     for(key in variableNodes){
         variableNodes[key].beliefUpdate();
     }
-
+    
     for(i in Object.keys(variableNodes)){ // i : idx from 0 to imgSize
         mu[i] = round(variableNodes[i].getMu()); //mu :buffer of new img.
-        
     } 
+    // console.log(variableNodes[0].getMu());
 
 // output image
     noisyImg.data = mu;
     putImgData("out_alldir"+ iter_num+".png", noisyImg);
 }
-
-

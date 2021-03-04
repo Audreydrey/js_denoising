@@ -12,15 +12,14 @@ console.log(noisySignal[0])
 
 for(var i = 1; i <= 10; i++){
     // get image data including meta data (4 channels)
-    console.log("out" + i + "[0][0]")
-    var noisyImg = getImgData("output/out" + i + ".png");
+    console.log("out_alldir" + i + "[0][0]")
+    var noisyImg = getImgData("output_alldir/out_alldir" + i + ".png");
 
     // reduce pixel values to 1 channel
     var noisySignal = getSingleCh(noisyImg.data, noisyImg.height*noisyImg.width); // buffer
     console.log(noisySignal[0])
 
 }
-
 
 
 function getSingleCh(buffer4Ch, imgSize){

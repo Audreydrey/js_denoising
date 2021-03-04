@@ -4,7 +4,7 @@ const { exit } = require('process');
 
 
 // get image data including meta data (4 channels)
-var noisyImg = getImgData("glasses-large.png");
+var noisyImg = getImgData("rose.png");
 
 // reduce pixel values to 1 channel
 var noisySignal = getSingleCh(noisyImg.data, noisyImg.height*noisyImg.width); // buffer
@@ -13,9 +13,6 @@ function getSingleCh(buffer4Ch, imgSize){
     var noisySignal = new Buffer.alloc(imgSize); //buffer
     for (var i = 0; i < imgSize; i ++){
          noisySignal[i] = buffer4Ch[4 * i];
-        // noisySignal.writeDoubleBE(buffer4Ch.readDoubleBE(i), );
-        
-        //  console.log(noisySignal[i]); //only integer values
     }
     return noisySignal;
 }
@@ -28,15 +25,13 @@ function  getImgData(name){
     var options = {bitDepth:16, inputHasAlpha:false}
 
     var data = fs.readFileSync("input/" + name);
-    // console.log(data);
     var noisyImg =  PNG.sync.read(data, options);
-    // console.log(noisyImg.data)
 
     console.log("===> image width : " + noisyImg.width);
     console.log("===> image height : " +noisyImg.height);
     console.log("===> image color : " + noisyImg.color);
     console.log("===> image has alpha : " + noisyImg.alpha);
-    console.log("===> image data : " + (noisyImg.data.length));
+    console.log("===> image data length: " + (noisyImg.data.length));
     console.log("----image loading complete----");
 
     return noisyImg;
@@ -86,8 +81,6 @@ class VariableNode{
         var eta_here = 0.0
         var lambda_prime_here = 0.0
         var factorIDs = [this.priorID, this.leftID, this.rightID, this.upID, this.downID]
-        // checked
-        // console.log(factorIDs)
         var fID;
         for (fID in factorIDs) {
             //  sometimes i don't have a factor to my left or right and this id is set to -1
@@ -95,12 +88,6 @@ class VariableNode{
                 eta_here += factorNodes[factorIDs[fID]].getEta();
                 lambda_prime_here += factorNodes[factorIDs[fID]].getLambdaPrime();
             }
-            // checked
-            // if(this.variableID < 10){
-            //     console.log(this.variableID);
-            //     console.log(eta_here)
-            //     console.log(lambda_prime_here)
-            // }
         }
             
         if (lambda_prime_here == 0.0){
@@ -108,16 +95,10 @@ class VariableNode{
             exit(0);
         }
         
-        // checked
-        // console.log(eta_here);
         this.sigma = inv(lambda_prime_here);
-        // console.log(this.sigma);
         this.mu = multiply(this.sigma, eta_here);
-        // console.log(this.mu);
         this.out_eta = eta_here;;
-        // console.log(this.out_eta);
         this.out_lambda_prime = lambda_prime_here;
-        // console.log(this.out_lambda_prime);
         
     }
 
@@ -145,7 +126,6 @@ class MeasurementNode{
         this.lambdaIn = lambdaIn; //should be scalar
 
         var J = 1.0;
-        // var JT = transpose(J);
 
         this.eta = lambdaIn * z;
         this.lambdaPrime = lambdaIn;
@@ -160,11 +140,7 @@ class MeasurementNode{
         var ms = sqrt(h * this.lambdaIn * h);
         if(ms > this.N_sigma){
             var k_r = (2 * this.N_sigma) / ms - this.N_sigma ** 2 / (ms ** 2);
-        // kr checked
-            // if(this.factorID < 100){
-            //     console.log(this.factorID);
-            //     console.log(k_r)
-            // }
+   
             return k_r;
         }else{
             return 1;
@@ -207,11 +183,6 @@ class SmoothnessNode{
         // IDs of left and right variable nodes:
         this.prevID = prevID;
         this.afterID = afterID;
-        // if(prevID < 10){
-        //     console.log(this.lambda_prime);
-        //     console.log(prevID)
-        //     console.log(afterID)
-        // }
  
         this.N_sigma  = sqrt(lambdaIn);
     }
@@ -230,10 +201,6 @@ class SmoothnessNode{
         if (ms > this.N_sigma){
             var kr = 2 * this.N_sigma / ms - (this.N_sigma ** 2) / (ms ** 2);
 
-            // if(this.factorID[0] < 10){
-            //     console.log(this.factorID)
-            //     console.log(kr)
-            // }
             return kr;
         }
         return 1;
@@ -260,14 +227,8 @@ class SmoothnessNode{
         // left is the first variable in eta and i want to marginalise out the second one (right)
         eta[idx1][0] = this.eta[idx1][0] + inwardEta;
         lambda_prime[idx1][idx1] = this.lambda_prime[idx1][idx1] + inwardLambda;
-        // console.log(inwardEta)
-        // console.log(this.eta[idx1])
-
-        // console.log(eta)
-        // console.log(this.eta)
         eta = multiply(eta, kr);
 
-        // console.log(eta)
         lambda_prime = multiply(lambda_prime, kr);
 
         var eta_a = eta[idx2][0];
@@ -340,42 +301,28 @@ for (var i = 0; i < imgHeight; i++){
         if(leftID != -1 && factorNodes[leftID] == null){
             factorNodes[leftID] = new SmoothnessNode(leftID,
                 lambdaSmooth, leftID[0], leftID[1]);
-                // console.log(leftID) 
         }
         if(rightID != -1 && factorNodes[rightID] == null){
             factorNodes[rightID] = new SmoothnessNode(rightID,
                 lambdaSmooth, rightID[0], rightID[1]);
-            // console.log(rightID)
         }
         if(upID != -1 && factorNodes[upID] == null){
             factorNodes[upID] = new SmoothnessNode(upID,
                 lambdaSmooth, upID[0], upID[1]);
-            // console.log(upID)
         }
         if(downID != -1 && factorNodes[downID] == null){
             factorNodes[downID] = new SmoothnessNode(downID,
                 lambdaSmooth, downID[0], downID[1]);
-            // console.log(downID)
         }
 
     }
 }
 
-
-// console.log(num);
-// console.log(imgHeight * imgWidth);
-// console.log(Object.keys(factorNodes).length); 
-// console.log(factorNodes[100].variableID); // 100
-// console.log(factorNodes[100].lambdaIn); // 1
-
-// console.log(factorNodes[173280] == null); // true
 var mu = new Buffer.alloc(imgHeight * imgWidth);
 var iter_num = 0;
-// console.log(noisySignal[100]);
-// console.log(factorNodes[100]);
 
 
-while(iter_num < 20) {
+while(iter_num < 10) {
     console.log('iteration : ' + iter_num);
     iter_num++;
 
@@ -457,19 +404,21 @@ while(iter_num < 20) {
         variableNodes[key].beliefUpdate();
     }
 
+    for(i in Object.keys(variableNodes)){ // i : idx from 0 to imgSize
+        mu[i] = round(variableNodes[i].getMu()); //mu :buffer of new img.
+        
+    } 
+
+// output image
+    noisyImg.data = mu;
+    putImgData("out"+ iter_num+".png", noisyImg);
 }
 
-for(i in Object.keys(variableNodes)){ // i : idx from 0 to imgSize
-    mu[i] = round(variableNodes[i].getMu()); //mu :buffer of new img.
-    // console.log(variableNodes[i].getMu());
-    // console.log(mu[i])
-} 
 
 // console.log(mu)
 // console.log(noisySignal)
 
 // console.log(mu);
 
-// out put image
-noisyImg.data = mu;
-putImgData("out.png", noisyImg);
+
+

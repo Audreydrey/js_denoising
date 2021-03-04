@@ -22,7 +22,7 @@ function  getImgData(name){
     var fs = require("fs");
 
     var  PNG = require("pngjs").PNG;
-    var options = {bitDepth:16, inputHasAlpha:false}
+    var options = {sinputHasAlpha:false}
 
     var data = fs.readFileSync("input/" + name);
     var noisyImg =  PNG.sync.read(data, options);
@@ -31,7 +31,7 @@ function  getImgData(name){
     console.log("===> image height : " +noisyImg.height);
     console.log("===> image color : " + noisyImg.color);
     console.log("===> image has alpha : " + noisyImg.alpha);
-    console.log("===> image data : " + (noisyImg.data.length));
+    console.log("===> image data length: " + (noisyImg.data.length));
     console.log("----image loading complete----");
 
     return noisyImg;
@@ -322,7 +322,7 @@ var mu = new Buffer.alloc(imgHeight * imgWidth);
 var iter_num = 0;
 
 
-while(iter_num < 20) {
+while(iter_num < 10) {
     console.log('iteration : ' + iter_num);
     iter_num++;
 

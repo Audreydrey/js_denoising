@@ -415,10 +415,4 @@ while(iter_num < 10) {
 }
 
 
-// console.log(mu)
-// console.log(noisySignal)
-
-// console.log(mu);
-
-
 

@@ -4,7 +4,7 @@ const { exit } = require('process');
 
 
 // get image data including meta data (4 channels)
-var noisyImg = getImgData("glasses-large.png");
+var noisyImg = getImgData("rose.png");
 
 // reduce pixel values to 1 channel
 var noisySignal = getSingleCh(noisyImg.data, noisyImg.height*noisyImg.width); // buffer
@@ -22,7 +22,7 @@ function  getImgData(name){
     var fs = require("fs");
 
     var  PNG = require("pngjs").PNG;
-    var options = {sinputHasAlpha:false}
+    var options = {bitDepth:16, inputHasAlpha:false}
 
     var data = fs.readFileSync("input/" + name);
     var noisyImg =  PNG.sync.read(data, options);
@@ -43,7 +43,7 @@ function  putImgData(name, png){
 
     var options = { inputColorType:0, colorType: 0, inputHasAlpha:false};
     var buffer = PNG.sync.write(png, options);
-    fs.writeFileSync('output/' + name, buffer, options);
+    fs.writeFileSync('output_alldir/' + name, buffer, options);
 }
 
 
@@ -80,14 +80,26 @@ class VariableNode{
     beliefUpdate(){
         var eta_here = 0.0
         var lambda_prime_here = 0.0
-        var factorIDs = [this.priorID, this.leftID, this.rightID, this.upID, this.downID]
-   
+        var factorIDs = [this.leftID, this.upID, this.rightID, this.downID]
         var fID;
+        // measurement node
+        eta_here += factorNodes[this.priorID].getEta();
+        lambda_prime_here += factorNodes[this.priorID].getLambdaPrime();
+
+        // smoothness node
         for (fID in factorIDs) {
             //  sometimes i don't have a factor to my left or right and this id is set to -1
             if (factorIDs[fID] != -1){
-                eta_here += factorNodes[factorIDs[fID]].getEta();
-                lambda_prime_here += factorNodes[factorIDs[fID]].getLambdaPrime();
+                //right and down
+                // get eta and lambdaPrime from prev nodes
+                if(fID > 1){ 
+                    eta_here += factorNodes[factorIDs[fID]].getEtaPrev();
+                    lambda_prime_here += factorNodes[factorIDs[fID]].getLambdaPrimePrev();
+                }else{
+                    eta_here += factorNodes[factorIDs[fID]].getEtaAfter();
+                    lambda_prime_here += factorNodes[factorIDs[fID]].getLambdaPrimeAfter();
+                }
+                
             }
         }
             
@@ -95,28 +107,12 @@ class VariableNode{
             console.log('Lambda prime is zero in belief update, something is wrong');
             exit(0);
         }
-
+        
         this.sigma = inv(lambda_prime_here);
         this.mu = multiply(this.sigma, eta_here);
         this.out_eta = eta_here;;
         this.out_lambda_prime = lambda_prime_here;
         
-    }
-
-    computeMsg(ID){ 
-    // ID is either right left down or up
-    //   compute msg right, up, left and down
-        this.beliefUpdate();
-        if(ID == -1){
-            this.out_eta = 0;
-            this.out_lambda_prime = 0;
-            return;
-        }
-        var eta_inward = factorNodes[ID].getEta();
-        var lambda_prime_inward = factorNodes[ID].getLambdaPrime();
-
-        this.out_eta = this.out_eta - eta_inward;
-        this.out_lambda_prime = this.out_lambda_prime - lambda_prime_inward;
     }
 }
 
@@ -125,7 +121,9 @@ class MeasurementNode{
         this.factorID = factorID;
         this.z = z; //pixel value
         this.lambdaIn = lambdaIn; //should be scalar
+
         var J = 1.0;
+
         this.eta = lambdaIn * z;
         this.lambdaPrime = lambdaIn;
         this.variableID = variableID;
@@ -139,7 +137,7 @@ class MeasurementNode{
         var ms = sqrt(h * this.lambdaIn * h);
         if(ms > this.N_sigma){
             var k_r = (2 * this.N_sigma) / ms - this.N_sigma ** 2 / (ms ** 2);
-
+   
             return k_r;
         }else{
             return 1;
@@ -176,8 +174,10 @@ class SmoothnessNode{
         this.lambda_prime = multiply(multiply(transpose(J), lambdaIn), J); 
         
         // variable messages:
-        this.variable_eta = 0.0;
-        this.variable_lambda = 0.0;
+        this.var_eta_prev = 0.0;
+        this.var_lambda_prev = 0.0;
+        this.var_eta_after = 0.0;
+        this.var_lambda_after = 0.0;
 
         // IDs of left and right variable nodes:
         this.prevID = prevID;
@@ -186,12 +186,20 @@ class SmoothnessNode{
         this.N_sigma  = sqrt(lambdaIn);
     }
 
-    getEta(){
-        return this.variable_eta;
+    getEtaPrev(){
+        return this.var_eta_prev;
     }
 
-    getLambdaPrime(){
-        return this.variable_lambda;
+    getEtaAfter(){
+        return this.var_eta_after;
+    }
+
+    getLambdaPrimePrev(){
+        return this.var_lambda_prev;
+    }
+
+    getLambdaPrimeAfter(){
+        return this.var_lambda_after;
     }
 
     computeHuberScale(){
@@ -206,18 +214,11 @@ class SmoothnessNode{
     }
 
     //  specify if it is msg to after node or prev
-    computeMsgHelper(isAfter){
+    computeMsgHelper(idx1, idx2, inwardID, var_eta, var_lambda_prime){
         // if prev 
-        var idx1 = 1;
-        var idx2 = 0;
-        var inwardID = this.afterID;
-        if(isAfter) {
-            idx1 = 0;
-            idx2 = 1;
-            inwardID = this.prevID;
-        }
-        var inwardEta = variableNodes[inwardID].getEta();
-        var inwardLambda = variableNodes[inwardID].getLambdaPrime();
+        
+        var inwardEta = variableNodes[inwardID].getEta() - var_eta;
+        var inwardLambda = variableNodes[inwardID].getLambdaPrime() - var_lambda_prime;
 
         var kr = this.computeHuberScale();
         var eta = clone(this.eta);
@@ -226,7 +227,6 @@ class SmoothnessNode{
         // left is the first variable in eta and i want to marginalise out the second one (right)
         eta[idx1][0] = this.eta[idx1][0] + inwardEta;
         lambda_prime[idx1][idx1] = this.lambda_prime[idx1][idx1] + inwardLambda;
-
         eta = multiply(eta, kr);
 
         lambda_prime = multiply(lambda_prime, kr);
@@ -238,19 +238,20 @@ class SmoothnessNode{
         var lambda_ba = lambda_prime[idx1][idx2];
         var lambda_bb = lambda_prime[idx1][idx1];
 
-        this.variable_eta = eta_a - lambda_ab / lambda_bb * eta_b;
-        this.variable_lambda = lambda_aa - lambda_ab / lambda_bb * lambda_ba;
+        return [eta_a - lambda_ab / lambda_bb * eta_b, lambda_aa - lambda_ab / lambda_bb * lambda_ba];
 
     }
 
     // after = right &down  prev = up & left
-    computeMsg(isAfter, horizontal){
-        if(horizontal && this.afterID - this.prevID == 1){
-            this.computeMsgHelper(isAfter);
-        } else if((!horizontal) && (this.afterID - this.prevID > 1)){
-            this.computeMsgHelper(isAfter);
-        }
+    computeMsg(){
+        var prev = this.computeMsgHelper(1, 0, this.afterID, this.var_eta_after, this.var_lambda_after);
+        var after = this.computeMsgHelper(0, 1, this.prevID, this.var_eta_prev, this.var_lambda_prev);
         
+        this.var_eta_prev = prev[0];
+        this.var_lambda_prev = prev[1];
+
+        this.var_eta_after = after[0];
+        this.var_lambda_after = after[1];
     }
 
 }
@@ -328,88 +329,21 @@ while(iter_num < 10) {
 
     // send msg from measurement factor
     for(key in factorNodes){
-        if(! key.includes(',')){
-            factorNodes[key].computeMsg();
-        }
+        factorNodes[key].computeMsg();
     }
 
-
-    // for each variable nodes: update belief in computeMsg 
-    // for each smoothness nodes: computeMsg
-    // for each measurement nodes : computeMsg
-    // in 4 dir
-
-    //-------------UP-----------
-    for(key in variableNodes){
-        variableNodes[key].computeMsg(variableNodes[key].upID);
-    }
-    for(key in factorNodes){ //smothness
-        if(key.includes(',')){
-            factorNodes[key].computeMsg(false, false); //up is not after
-        }
-    }
-    for(key in factorNodes){ //measurement
-        if(! key.includes(',')){
-            factorNodes[key].computeMsg();
-        }
-    }
-
-    //-------------RIGHT-----------
-    for(key in variableNodes){
-        variableNodes[key].computeMsg(variableNodes[key].rightID);
-    }
-    for(key in factorNodes){ //smothness
-        if(key.includes(',')){
-            factorNodes[key].computeMsg(true, true); //right is after
-        }
-    }
-    for(key in factorNodes){ //measurement
-        if(! key.includes(',')){
-            factorNodes[key].computeMsg();
-        }
-    }
-
-    // //-------------DOWN-----------
-    for(key in variableNodes){
-        variableNodes[key].computeMsg(variableNodes[key].downID);
-    }
-    for(key in factorNodes){ //smothness
-        if(key.includes(',')){
-            factorNodes[key].computeMsg(true, false); //down is after
-        }
-    }
-    for(key in factorNodes){ //measurement
-        if(! key.includes(',')){
-            factorNodes[key].computeMsg();
-        }
-    }
-
-    // //-------------LEFT-----------
-    for(key in variableNodes){
-        variableNodes[key].computeMsg(variableNodes[key].leftID);
-    }
-    for(key in factorNodes){ //smothness
-        if(key.includes(',')){
-            factorNodes[key].computeMsg(false, true); //left is not after
-        }
-    }
-    for(key in factorNodes){ //measurement
-        if(! key.includes(',')){
-            factorNodes[key].computeMsg();
-        }
-    }
-
-    // -----------belief update--------
     for(key in variableNodes){
         variableNodes[key].beliefUpdate();
     }
 
+    for(i in Object.keys(variableNodes)){ // i : idx from 0 to imgSize
+        mu[i] = round(variableNodes[i].getMu()); //mu :buffer of new img.
+        
+    } 
+
+// output image
+    noisyImg.data = mu;
+    putImgData("out"+ iter_num+".png", noisyImg);
 }
 
-for(i in Object.keys(variableNodes)){ // i : idx from 0 to imgSize
-    mu[i] = round(variableNodes[i].getMu()); //mu :buffer of new img.
-} 
 
-// out put image
-noisyImg.data = mu;
-putImgData("out.png", noisyImg);

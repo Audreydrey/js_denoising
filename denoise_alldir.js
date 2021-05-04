@@ -1,16 +1,35 @@
-const { min, max, clone, inv, matrix, size, multiply, 
-    transpose, sqrt, ones, zeros, round} = require('mathjs');
+const { abs, min, max, clone, inv, matrix, size, multiply, 
+    transpose, sqrt, ones, zeros, round, string} = require('mathjs');
 const { exit } = require('process');
 
+var realImage = true;
+var imgHeight = 0;
+var imgWidth = 0;
+var noisySignal = null;
+if (realImage){
+    // get image data including meta data (4 channels)
+    var noisyImg = getImgData("glasses-large.png");
 
-// get image data including meta data (4 channels)
-var noisyImg = getImgData("rose.png");
+    // reduce pixel values to 1 channel
+    noisySignal = getSingleCh(noisyImg.data, noisyImg.height*noisyImg.width); // buffer
 
-// reduce pixel values to 1 channel
-var noisySignal = getSingleCh(noisyImg.data, noisyImg.height*noisyImg.width); // buffer
+    imgHeight = noisyImg.height;
+    imgWidth = noisyImg.width;
+}else{
+    imgHeight = 2;
+    imgWidth = 2;
+    noisySignal = new Float32Array(2 * 2);
+    for (var i = 0; i < 4; i ++){
+        noisySignal[i] = 1.1 * i;
+        console.log(noisySignal[i]);
+   }
+}
+
+
+
 
 function getSingleCh(buffer4Ch, imgSize){
-    var noisySignal = new Buffer.alloc(imgSize); //buffer
+    var noisySignal = new Float32Array(imgSize); //buffer
     for (var i = 0; i < imgSize; i ++){
          noisySignal[i] = buffer4Ch[4 * i];
     }
@@ -50,15 +69,19 @@ function  putImgData(name, png){
 class VariableNode{
     constructor(variableID, mu, sigma, priorID, leftID, rightID, upID, downID){
     this.variableID = variableID;
+    //beliefs
     this.mu = mu; //should be scalar
     this.sigma = sigma; //should be scalar
+
+    //messages
+    this.out_eta = 0; 
+    this.out_lambda_prime = 0;
+
     this.priorID = priorID;
     this.leftID = leftID;
     this.rightID = rightID;
     this.upID = upID;
-    this.downID = downID;
-    this.out_eta = 0; 
-    this.out_lambda_prime = 0;
+    this.downID = downID;   
     }
 
     getEta() {
@@ -102,42 +125,50 @@ class VariableNode{
                 
             }
         }
-            
         if (lambda_prime_here == 0.0){
             console.log('Lambda prime is zero in belief update, something is wrong');
             exit(0);
         }
-        
         this.sigma = inv(lambda_prime_here);
         this.mu = multiply(this.sigma, eta_here);
-        this.out_eta = eta_here;;
+        this.out_eta = eta_here;
         this.out_lambda_prime = lambda_prime_here;
         
     }
 }
 
-class MeasurementNode{
+class MeasurementNode{ //prior
     constructor(factorID, z, lambdaIn, variableID){
-        this.factorID = factorID;
-        this.z = z; //pixel value
+        this.factorID = factorID; // = varID
+        this.z = z; //pixel value //look up from texture
         this.lambdaIn = lambdaIn; //should be scalar
 
-        var J = 1.0;
-
-        this.eta = lambdaIn * z;
-        this.lambdaPrime = lambdaIn;
+        var J = 1.0; //not used
+        // won't change
+        this.eta = lambdaIn * z; // z
+        this.lambdaPrime = lambdaIn; // 1
         this.variableID = variableID;
-        this.N_sigma = sqrt(lambdaIn);
-        this.variableEta = this.eta;
-        this.variableLambdaPrime = this.lambdaPrime;
+        this.N_sigma = sqrt(lambdaIn); // 1
+
+        //measurement node messages
+        this.variableEta = this.eta; // 1
+        this.variableLambdaPrime = this.lambdaPrime; // 1
     }
 
     computeHuberscale(){
-        var h = this.z - variableNodes[this.variableID].getMu();
+        var h = this.z - 0.5;
+        if(realImage){
+            h = this.z - variableNodes[this.variableID].getMu();
+        }
+        
         var ms = sqrt(h * this.lambdaIn * h);
+        // var msabs = abs(h);
+        // console.log("ms : " + string(ms));
+        // console.log("z : " + string(this.z));
+        // console.log("ms1 : " + string(msabs));
+
         if(ms > this.N_sigma){
             var k_r = (2 * this.N_sigma) / ms - this.N_sigma ** 2 / (ms ** 2);
-   
             return k_r;
         }else{
             return 1;
@@ -148,6 +179,14 @@ class MeasurementNode{
         var kr = this.computeHuberscale();
         this.variableEta = this.eta * kr;
         this.variableLambdaPrime = this.lambdaPrime * kr;
+        // if(this.lambdaIn != 1){
+        //     console.log(this.lambdaIn);
+        // }
+        // console.log("var eta");
+        // console.log(this.variableEta);
+        // console.log("var lambda prime");
+        // console.log(this.variableLambdaPrime)
+        
     }
 
     getEta(){
@@ -171,7 +210,7 @@ class SmoothnessNode{
         // has the same form
         this.lambdaIn = lambdaIn;
         this.eta = [[0], [0]];
-        this.lambda_prime = multiply(multiply(transpose(J), lambdaIn), J); 
+        this.lambda_prime = multiply(multiply(transpose(J), lambdaIn), J); //2*2
         
         // variable messages:
         this.var_eta_prev = 0.0;
@@ -264,61 +303,73 @@ var lambdaSmooth = 1 / SIGMASmooth ** 2;
 var variableNodes = {};
 var factorNodes = {};
 
-var imgHeight = noisyImg.height;
-var imgWidth = noisyImg.width;
 
-for (var i = 0; i < imgHeight; i++){
-    for (var j = 0; j < imgWidth; j++){
-        var varID = i * imgWidth + j;
-        var upID = -1;
-        var downID = -1;
-        var leftID = -1;
-        var rightID = -1;
 
-        // ID for 4 dir containing varID and factorNode ID
-        // the first ID is smaller
-        if(i - 1 >= 0){
-            var up = (i - 1) * imgWidth + j;
-            upID = [min(up, varID), max(up, varID)];
-        }
-        if (i + 1 < imgHeight){
-            var down = (i + 1) * imgWidth + j;
-            downID = [min(down, varID), max(down, varID)];
-        }
-        if(j - 1 >= 0){
-            var left = i * imgWidth + j - 1;
-            leftID = [min(left, varID), max(left, varID)];
-        }
-        if (j + 1 < imgWidth){
-            var right = i * imgWidth + j + 1;
-            rightID = [min(right, varID), max(right, varID)];
-        }
-        variableNodes[varID] = new VariableNode(varID, 0, 0, varID,
-            leftID, rightID, upID, downID);
+// console.log(lambdaMeas); // 1
+// console.log(lambdaSmooth)
 
-        factorNodes[varID] = new MeasurementNode(varID, 
-            noisySignal[i * imgWidth + j], lambdaMeas, varID);
+if(realImage){
+    for (var i = 0; i < imgHeight; i++){
+        for (var j = 0; j < imgWidth; j++){
+            var varID = i * imgWidth + j;
+            var upID = -1;
+            var downID = -1;
+            var leftID = -1;
+            var rightID = -1;
 
-        if(leftID != -1 && factorNodes[leftID] == null){
-            factorNodes[leftID] = new SmoothnessNode(leftID,
-                lambdaSmooth, leftID[0], leftID[1]);
-        }
-        if(rightID != -1 && factorNodes[rightID] == null){
-            factorNodes[rightID] = new SmoothnessNode(rightID,
-                lambdaSmooth, rightID[0], rightID[1]);
-        }
-        if(upID != -1 && factorNodes[upID] == null){
-            factorNodes[upID] = new SmoothnessNode(upID,
-                lambdaSmooth, upID[0], upID[1]);
-        }
-        if(downID != -1 && factorNodes[downID] == null){
-            factorNodes[downID] = new SmoothnessNode(downID,
-                lambdaSmooth, downID[0], downID[1]);
-        }
+            // ID for 4 dir containing varID and factorNode ID
+            // the first ID is smaller
+            if(i - 1 >= 0){
+                var up = (i - 1) * imgWidth + j;
+                upID = [min(up, varID), max(up, varID)];
+            }
+            if (i + 1 < imgHeight){
+                var down = (i + 1) * imgWidth + j;
+                downID = [min(down, varID), max(down, varID)];
+            }
+            if(j - 1 >= 0){
+                var left = i * imgWidth + j - 1;
+                leftID = [min(left, varID), max(left, varID)];
+            }
+            if (j + 1 < imgWidth){
+                var right = i * imgWidth + j + 1;
+                rightID = [min(right, varID), max(right, varID)];
+            }
+            variableNodes[varID] = new VariableNode(varID, 0, 0, varID,
+                leftID, rightID, upID, downID);
 
+            factorNodes[varID] = new MeasurementNode(varID, 
+                noisySignal[i * imgWidth + j], lambdaMeas, varID);
+
+            
+
+            if(leftID != -1 && factorNodes[leftID] == null){
+                factorNodes[leftID] = new SmoothnessNode(leftID,
+                    lambdaSmooth, leftID[0], leftID[1]);
+            }
+            if(rightID != -1 && factorNodes[rightID] == null){
+                factorNodes[rightID] = new SmoothnessNode(rightID,
+                    lambdaSmooth, rightID[0], rightID[1]);
+            }
+            if(upID != -1 && factorNodes[upID] == null){
+                factorNodes[upID] = new SmoothnessNode(upID,
+                    lambdaSmooth, upID[0], upID[1]);
+            }
+            if(downID != -1 && factorNodes[downID] == null){
+                factorNodes[downID] = new SmoothnessNode(downID,
+                    lambdaSmooth, downID[0], downID[1]);
+            }
+        }
+    }
+}else{ //not real image
+    for (var i = 0; i < imgHeight; i++){
+        for (var j = 0; j < imgWidth; j++){
+            var varID = i * imgWidth + j;
+            factorNodes[varID] = new MeasurementNode(varID, 
+                noisySignal[i * imgWidth + j], lambdaMeas, varID);
+        }
     }
 }
-
 var mu = new Buffer.alloc(imgHeight * imgWidth);
 var iter_num = 0;
 
@@ -335,13 +386,15 @@ while(iter_num < 10) {
     for(key in variableNodes){
         variableNodes[key].beliefUpdate();
     }
+    if (realImage){
+        for(i in Object.keys(variableNodes)){ // i : idx from 0 to imgSize
+            mu[i] = round(variableNodes[i].getMu()); //mu :buffer of new img.
+        } 
+        // console.log(variableNodes[0].getMu());
     
-    for(i in Object.keys(variableNodes)){ // i : idx from 0 to imgSize
-        mu[i] = round(variableNodes[i].getMu()); //mu :buffer of new img.
-    } 
-    // console.log(variableNodes[0].getMu());
-
-// output image
-    noisyImg.data = mu;
-    putImgData("out_alldir"+ iter_num+".png", noisyImg);
+        // output image
+        noisyImg.data = mu;
+        putImgData("out_alldir"+ iter_num+".png", noisyImg);
+    }
+    
 }

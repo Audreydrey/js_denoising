@@ -1,0 +1,3 @@
+image,image_size,number_of_iter,duration_ms,render_output_image
+glasses-large.png,136960,10,25731,true
+glasses-large.png,136960,10,22888,false

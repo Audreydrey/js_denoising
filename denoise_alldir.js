@@ -7,12 +7,14 @@ console.log(process.argv);
 var imgName = "glasses-large.png";
 var iter = 10;
 var renderOutput = false;
+var newLog = false;
 if(process.argv.length > 2){
-    imageName = process.argv[2];
+    imgName = process.argv[2];
     iter = parseInt(process.argv[3]);
     renderOutput = process.argv[4] == "true";
+    newLog = process.argv[5] == "true";
 }else{
-    exit("not enough args, need 1，imageName 2，number of iter 3，render output images");
+    exit("not enough args, need 1，imgName 2，number of iter 3，render output images");
 }
 // ===================================
 
@@ -468,14 +470,20 @@ logResults();
 
 function logResults(){
     const objectsToCsv = require('objects-to-csv');
-    var result = [{image : imgName, 
+    var result = [{image : imgName,
                 image_size : imgHeight * imgWidth,
                 number_of_iter : iter, 
                 duration_ms : duration,
                 render_output_image : string(renderOutput)}];
     const csv = new objectsToCsv(result);
-    csv.toDisk('resultLog/resultLogAllDir.csv', {append : true});
 
-// ============== removed the append:true to clear previous results ===========
-    // csv.toDisk('resultLog/resultLogAllDir.csv');
+    if(newLog){ // removed the append:true to clear previous results ===========
+        csv.toDisk('resultLog/resultLogAllDir.csv');
+    }else{
+        csv.toDisk('resultLog/resultLogAllDir.csv', {append : true});
+    }
+    
+
+
+    
 }

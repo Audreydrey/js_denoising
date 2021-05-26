@@ -1,10 +1,28 @@
 const { min, max, clone, inv, matrix, size, multiply, 
-    transpose, sqrt, ones, zeros, round} = require('mathjs');
+    transpose, sqrt, ones, zeros, round, string} = require('mathjs');
 const { exit } = require('process');
+
+// ======= parse input args ==========
+
+// console.log(process.argv);
+var imgName = "glasses-large.png";
+var iter = 10;
+var renderOutput = false;
+var eval_mode = false;                   //disable all console.log  except duration in the eval mode
+if(process.argv.length > 2){
+    eval_mode = true;
+    imgName = process.argv[2];                  //1, image name
+    iter = parseInt(process.argv[3]);           //2, number of iteration
+    renderOutput = process.argv[4] == "true";   //3, render output images
+}else{
+    exit("not enough args, need 1，imgName 2，number of iter 3，render output images");
+}
+// ===================================
+
 
 
 // get image data including meta data (4 channels)
-var noisyImg = getImgData("rose.png");
+var noisyImg = getImgData(imgName);
 
 // reduce pixel values to 1 channel
 var noisySignal = getSingleCh(noisyImg.data, noisyImg.height*noisyImg.width); // buffer
@@ -26,13 +44,15 @@ function  getImgData(name){
 
     var data = fs.readFileSync("input/" + name);
     var noisyImg =  PNG.sync.read(data, options);
-
-    console.log("===> image width : " + noisyImg.width);
-    console.log("===> image height : " +noisyImg.height);
-    console.log("===> image color : " + noisyImg.color);
-    console.log("===> image has alpha : " + noisyImg.alpha);
-    console.log("===> image data length: " + (noisyImg.data.length));
-    console.log("----image loading complete----");
+    if(! eval_mode){
+        console.log("===> image width : " + noisyImg.width);
+        console.log("===> image height : " +noisyImg.height);
+        console.log("===> image color : " + noisyImg.color);
+        console.log("===> image has alpha : " + noisyImg.alpha);
+        console.log("===> image data length: " + (noisyImg.data.length));
+        console.log("----image loading complete----");
+    }
+ 
 
     return noisyImg;
 }
@@ -266,153 +286,189 @@ var factorNodes = {};
 var imgHeight = noisyImg.height;
 var imgWidth = noisyImg.width;
 
-for (var i = 0; i < imgHeight; i++){
-    for (var j = 0; j < imgWidth; j++){
-        var varID = i * imgWidth + j;
-        var upID = -1;
-        var downID = -1;
-        var leftID = -1;
-        var rightID = -1;
+function setUpNodes(){
 
-        // ID for 4 dir containing varID and factorNode ID
-        // the first ID is smaller
-        if(i - 1 >= 0){
-            var up = (i - 1) * imgWidth + j;
-            upID = [min(up, varID), max(up, varID)];
-        }
-        if (i + 1 < imgHeight){
-            var down = (i + 1) * imgWidth + j;
-            downID = [min(down, varID), max(down, varID)];
-        }
-        if(j - 1 >= 0){
-            var left = i * imgWidth + j - 1;
-            leftID = [min(left, varID), max(left, varID)];
-        }
-        if (j + 1 < imgWidth){
-            var right = i * imgWidth + j + 1;
-            rightID = [min(right, varID), max(right, varID)];
-        }
-        variableNodes[varID] = new VariableNode(varID, 0, 0, varID,
-            leftID, rightID, upID, downID);
+    for (var i = 0; i < imgHeight; i++){
+        for (var j = 0; j < imgWidth; j++){
+            var varID = i * imgWidth + j;
+            var upID = -1;
+            var downID = -1;
+            var leftID = -1;
+            var rightID = -1;
 
-        factorNodes[varID] = new MeasurementNode(varID, 
-            noisySignal[i * imgWidth + j], lambdaMeas, varID);
+            // ID for 4 dir containing varID and factorNode ID
+            // the first ID is smaller
+            if(i - 1 >= 0){
+                var up = (i - 1) * imgWidth + j;
+                upID = [min(up, varID), max(up, varID)];
+            }
+            if (i + 1 < imgHeight){
+                var down = (i + 1) * imgWidth + j;
+                downID = [min(down, varID), max(down, varID)];
+            }
+            if(j - 1 >= 0){
+                var left = i * imgWidth + j - 1;
+                leftID = [min(left, varID), max(left, varID)];
+            }
+            if (j + 1 < imgWidth){
+                var right = i * imgWidth + j + 1;
+                rightID = [min(right, varID), max(right, varID)];
+            }
+            variableNodes[varID] = new VariableNode(varID, 0, 0, varID,
+                leftID, rightID, upID, downID);
 
-        if(leftID != -1 && factorNodes[leftID] == null){
-            factorNodes[leftID] = new SmoothnessNode(leftID,
-                lambdaSmooth, leftID[0], leftID[1]);
-        }
-        if(rightID != -1 && factorNodes[rightID] == null){
-            factorNodes[rightID] = new SmoothnessNode(rightID,
-                lambdaSmooth, rightID[0], rightID[1]);
-        }
-        if(upID != -1 && factorNodes[upID] == null){
-            factorNodes[upID] = new SmoothnessNode(upID,
-                lambdaSmooth, upID[0], upID[1]);
-        }
-        if(downID != -1 && factorNodes[downID] == null){
-            factorNodes[downID] = new SmoothnessNode(downID,
-                lambdaSmooth, downID[0], downID[1]);
-        }
+            factorNodes[varID] = new MeasurementNode(varID, 
+                noisySignal[i * imgWidth + j], lambdaMeas, varID);
 
+            if(leftID != -1 && factorNodes[leftID] == null){
+                factorNodes[leftID] = new SmoothnessNode(leftID,
+                    lambdaSmooth, leftID[0], leftID[1]);
+            }
+            if(rightID != -1 && factorNodes[rightID] == null){
+                factorNodes[rightID] = new SmoothnessNode(rightID,
+                    lambdaSmooth, rightID[0], rightID[1]);
+            }
+            if(upID != -1 && factorNodes[upID] == null){
+                factorNodes[upID] = new SmoothnessNode(upID,
+                    lambdaSmooth, upID[0], upID[1]);
+            }
+            if(downID != -1 && factorNodes[downID] == null){
+                factorNodes[downID] = new SmoothnessNode(downID,
+                    lambdaSmooth, downID[0], downID[1]);
+            }
+
+        }
     }
+
 }
 
-var mu = new Buffer.alloc(imgHeight * imgWidth);
-var iter_num = 0;
-
-
-while(iter_num < 10) {
-    console.log('iteration : ' + iter_num);
-    iter_num++;
-
-    // send msg from measurement factor
-    for(key in factorNodes){
-        if(! key.includes(',')){
-            factorNodes[key].computeMsg();
+function denoise(){
+    var iter_num = 0;
+    var mu = new Buffer.alloc(imgHeight * imgWidth);
+    while(iter_num < iter) {
+        if(!eval_mode){
+            console.log('iteration : ' + iter_num);
         }
-    }
-
-
-    // for each variable nodes: update belief in computeMsg 
-    // for each smoothness nodes: computeMsg
-    // for each measurement nodes : computeMsg
-    // in 4 dir
-
-    //-------------UP-----------
-    for(key in variableNodes){
-        variableNodes[key].computeMsg(variableNodes[key].upID);
-    }
-    for(key in factorNodes){ //smothness
-        if(key.includes(',')){
-            factorNodes[key].computeMsg(false, false); //up is not after
+        iter_num++;
+    
+        // send msg from measurement factor
+        for(key in factorNodes){
+            if(! key.includes(',')){
+                factorNodes[key].computeMsg();
+            }
         }
-    }
-    for(key in factorNodes){ //measurement
-        if(! key.includes(',')){
-            factorNodes[key].computeMsg();
+    
+    
+        // for each variable nodes: update belief in computeMsg 
+        // for each smoothness nodes: computeMsg
+        // for each measurement nodes : computeMsg
+        // in 4 dir
+    
+        //-------------UP-----------
+        for(key in variableNodes){
+            variableNodes[key].computeMsg(variableNodes[key].upID);
         }
-    }
-
-    //-------------RIGHT-----------
-    for(key in variableNodes){
-        variableNodes[key].computeMsg(variableNodes[key].rightID);
-    }
-    for(key in factorNodes){ //smothness
-        if(key.includes(',')){
-            factorNodes[key].computeMsg(true, true); //right is after
+        for(key in factorNodes){ //smothness
+            if(key.includes(',')){
+                factorNodes[key].computeMsg(false, false); //up is not after
+            }
         }
-    }
-    for(key in factorNodes){ //measurement
-        if(! key.includes(',')){
-            factorNodes[key].computeMsg();
+        for(key in factorNodes){ //measurement
+            if(! key.includes(',')){
+                factorNodes[key].computeMsg();
+            }
         }
-    }
-
-    // //-------------DOWN-----------
-    for(key in variableNodes){
-        variableNodes[key].computeMsg(variableNodes[key].downID);
-    }
-    for(key in factorNodes){ //smothness
-        if(key.includes(',')){
-            factorNodes[key].computeMsg(true, false); //down is after
+    
+        //-------------RIGHT-----------
+        for(key in variableNodes){
+            variableNodes[key].computeMsg(variableNodes[key].rightID);
         }
-    }
-    for(key in factorNodes){ //measurement
-        if(! key.includes(',')){
-            factorNodes[key].computeMsg();
+        for(key in factorNodes){ //smothness
+            if(key.includes(',')){
+                factorNodes[key].computeMsg(true, true); //right is after
+            }
         }
-    }
-
-    // //-------------LEFT-----------
-    for(key in variableNodes){
-        variableNodes[key].computeMsg(variableNodes[key].leftID);
-    }
-    for(key in factorNodes){ //smothness
-        if(key.includes(',')){
-            factorNodes[key].computeMsg(false, true); //left is not after
+        for(key in factorNodes){ //measurement
+            if(! key.includes(',')){
+                factorNodes[key].computeMsg();
+            }
         }
-    }
-    for(key in factorNodes){ //measurement
-        if(! key.includes(',')){
-            factorNodes[key].computeMsg();
+    
+        // //-------------DOWN-----------
+        for(key in variableNodes){
+            variableNodes[key].computeMsg(variableNodes[key].downID);
         }
-    }
-
-    // -----------belief update--------
-    for(key in variableNodes){
-        variableNodes[key].beliefUpdate();
-    }
-
-    for(i in Object.keys(variableNodes)){ // i : idx from 0 to imgSize
-        mu[i] = round(variableNodes[i].getMu()); //mu :buffer of new img.
+        for(key in factorNodes){ //smothness
+            if(key.includes(',')){
+                factorNodes[key].computeMsg(true, false); //down is after
+            }
+        }
+        for(key in factorNodes){ //measurement
+            if(! key.includes(',')){
+                factorNodes[key].computeMsg();
+            }
+        }
+    
+        // //-------------LEFT-----------
+        for(key in variableNodes){
+            variableNodes[key].computeMsg(variableNodes[key].leftID);
+        }
+        for(key in factorNodes){ //smothness
+            if(key.includes(',')){
+                factorNodes[key].computeMsg(false, true); //left is not after
+            }
+        }
+        for(key in factorNodes){ //measurement
+            if(! key.includes(',')){
+                factorNodes[key].computeMsg();
+            }
+        }
+    
+        // -----------belief update--------
+        for(key in variableNodes){
+            variableNodes[key].beliefUpdate();
+        }
+    
+        for(i in Object.keys(variableNodes)){ // i : idx from 0 to imgSize
+            mu[i] = round(variableNodes[i].getMu()); //mu :buffer of new img.
+            
+        } 
+    
+    // output image
+        if(renderOutput){
+            noisyImg.data = mu;
+            putImgData("out"+ iter_num+".png", noisyImg);
+        }
         
-    } 
-
-// output image
-    noisyImg.data = mu;
-    putImgData("out"+ iter_num+".png", noisyImg);
+    }
 }
+
+setUpNodes();
+var startIter = (new Date()).getTime();
+denoise();
+var endIter = (new Date()).getTime();
+var duration = endIter - startIter;
+// console.log("duration (ms)");
+console.log(duration);
+logResults();
+
+
+function logResults(){
+    const objectsToCsv = require('objects-to-csv');
+    var result = [{image : imgName,
+                image_size : imgHeight * imgWidth,
+                number_of_iter : iter, 
+                duration_ms : duration,
+                render_output_image : string(renderOutput)}];
+    const csv = new objectsToCsv(result);
+
+    csv.toDisk('resultLog/resultLog.csv', {append : true});
+
+    // removed the append:true to clear previous results ===========
+    // csv.toDisk('resultLog/resultLogAllDir.csv'); 
+}
+
+
 
 
 

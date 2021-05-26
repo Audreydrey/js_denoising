@@ -1,18 +1,19 @@
 const { abs, min, max, clone, inv, matrix, size, multiply, 
     transpose, sqrt, ones, zeros, round, string, stirlingS2, boolean} = require('mathjs');
+const { mainModule } = require('process');
 const { exit } = require('process');
 
 // ======= parse input args ==========
-console.log(process.argv);
+// console.log(process.argv);
 var imgName = "glasses-large.png";
 var iter = 10;
 var renderOutput = false;
-var newLog = false;
+var eval_mode = false;  //disable all console.log  except duration in the eval mode
 if(process.argv.length > 2){
-    imgName = process.argv[2];
-    iter = parseInt(process.argv[3]);
-    renderOutput = process.argv[4] == "true";
-    newLog = process.argv[5] == "true";
+    eval_mode = true;
+    imgName = process.argv[2];                  // 1, image name
+    iter = parseInt(process.argv[3]);           // 2, number of iterations
+    renderOutput = process.argv[4] == "true";   // 3, don't render output image
 }else{
     exit("not enough args, need 1，imgName 2，number of iter 3，render output images");
 }
@@ -61,12 +62,15 @@ function  getImgData(name){
     var data = fs.readFileSync("input/" + name);
     var noisyImg =  PNG.sync.read(data, options);
 
-    console.log("===> image width : " + noisyImg.width);
-    console.log("===> image height : " +noisyImg.height);
-    console.log("===> image color : " + noisyImg.color);
-    console.log("===> image has alpha : " + noisyImg.alpha);
-    console.log("===> image data length: " + (noisyImg.data.length));
-    console.log("----image loading complete----");
+    if(!eval_mode){
+        console.log("===> image width : " + noisyImg.width);
+        console.log("===> image height : " +noisyImg.height);
+        console.log("===> image color : " + noisyImg.color);
+        console.log("===> image has alpha : " + noisyImg.alpha);
+        console.log("===> image data length: " + (noisyImg.data.length));
+        console.log("----image loading complete----");
+    }
+  
 
     return noisyImg;
 }
@@ -199,9 +203,9 @@ class MeasurementNode{ //prior
 
     computeMsg(){
         var kr = this.computeHuberscale();
-        if(kr < 0){
-            console.log("prior kr is " + string(kr));
-        }
+        // if(kr < 0){
+        //     console.log("prior kr is " + string(kr));
+        // }
         this.variableEta = this.eta * kr;
         this.variableLambdaPrime = this.lambdaPrime * kr;
         // console.log("var eta = " + string(this.variableEta));
@@ -276,7 +280,7 @@ class SmoothnessNode{
         var ms = sqrt(this.lambdaIn * h ** 2);//abs(sqrt(lambdaIn) * h) 5*h
         if (ms > this.N_sigma){
             var kr = 2 * this.N_sigma / ms - (this.N_sigma ** 2) / (ms ** 2);
-            if(kr < 0) console.log("kr : " + string(kr));
+            // if(kr < 0) console.log("kr : " + string(kr));
             return kr;
         }
         return 1;
@@ -314,18 +318,18 @@ class SmoothnessNode{
         // var lambda_bb = (this.lambdaIn + inwardLambda) * kr
 
 
-        if(eta_a != 0 ){
-            console.log("eta_a is not 0");
-        }
-        if (lambda_aa != this.lambdaIn * kr){
-            console.log("lambda_aa is" + string(lambda_aa));
-        }
-        if (lambda_ab != - this.lambdaIn * kr){
-            console.log("lambda_ab is not 0");
-        }
-        if (lambda_ba != -this.lambdaIn * kr){
-            console.log("lambda_ba is not 0");
-        }
+        // if(eta_a != 0 ){
+        //     console.log("eta_a is not 0");
+        // }
+        // if (lambda_aa != this.lambdaIn * kr){
+        //     console.log("lambda_aa is" + string(lambda_aa));
+        // }
+        // if (lambda_ab != - this.lambdaIn * kr){
+        //     console.log("lambda_ab is not 0");
+        // }
+        // if (lambda_ba != -this.lambdaIn * kr){
+        //     console.log("lambda_ba is not 0");
+        // }
 
         return [eta_a - lambda_ab / lambda_bb * eta_b, lambda_aa - lambda_ab / lambda_bb * lambda_ba];
         //[ lambdaSmooth / (lambdaSmooth + inwardLambda) * (inwardEta * kr),
@@ -344,10 +348,10 @@ class SmoothnessNode{
 
         this.var_eta_after = after[0];
         this.var_lambda_after = after[1];
-        if (prev[0] < 0) console.log("var eta prev : " + string(prev[0]));
-        if (prev[1] < 0) console.log("var lambda prev : " + string(prev[1]));
-        if (after[0] < 0) console.log("var eta after : " + string(after[0]));
-        if (after[1] < 0) console.log("var lambda after : " + string(after[1]));
+        // if (prev[0] < 0) console.log("var eta prev : " + string(prev[0]));
+        // if (prev[1] < 0) console.log("var lambda prev : " + string(prev[1]));
+        // if (after[0] < 0) console.log("var eta after : " + string(after[0]));
+        // if (after[1] < 0) console.log("var lambda after : " + string(after[1]));
     }
 
 }
@@ -422,7 +426,10 @@ function denoise(){
     var mu = new Buffer.alloc(imgHeight * imgWidth);
     var iter_num = 0;
     while(iter_num < iter) {
-        console.log('iteration : ' + iter_num);
+        if(!eval_mode){
+            console.log('iteration : ' + iter_num);
+        }
+        
         iter_num++;
         // send msg from measurement factor
         for(key in factorNodes){
@@ -463,8 +470,13 @@ denoise();
 var endIter = (new Date()).getTime();
 
 var duration = endIter - startIter;
-console.log("duration (ms)");
+if(!eval_mode){
+    console.log("duration (ms)");
+    
+}
 console.log(duration);
+// process.stdout.write(string(duration));
+
 
 logResults();
 
@@ -477,13 +489,8 @@ function logResults(){
                 render_output_image : string(renderOutput)}];
     const csv = new objectsToCsv(result);
 
-    if(newLog){ // removed the append:true to clear previous results ===========
-        csv.toDisk('resultLog/resultLogAllDir.csv');
-    }else{
-        csv.toDisk('resultLog/resultLogAllDir.csv', {append : true});
-    }
-    
+    csv.toDisk('resultLog/resultLogAllDir.csv', {append : true});
 
-
-    
+    // removed the append:true to clear previous results ===========
+    // csv.toDisk('resultLog/resultLogAllDir.csv'); 
 }

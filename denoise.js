@@ -2,30 +2,41 @@ const { min, max, clone, inv, matrix, size, multiply,
     transpose, sqrt, ones, zeros, round, string} = require('mathjs');
 const { exit } = require('process');
 
-// ======= parse input args ==========
-
+// ======= parse input args ==================
 // console.log(process.argv);
-var imgName = "glasses-large.png";
-var iter = 10;
-var renderOutput = false;
-var eval_mode = false;                   //disable all console.log  except duration in the eval mode
-if(process.argv.length > 2){
-    eval_mode = true;
-    imgName = process.argv[2];                  //1, image name
-    iter = parseInt(process.argv[3]);           //2, number of iteration
-    renderOutput = process.argv[4] == "true";   //3, render output images
-}else{
-    exit("not enough args, need 1，imgName 2，number of iter 3，render output images");
+if(process.argv.length != 7) {
+    exit("need 1，imgName or size 2，number of iter 3，render output images 4, eval mode");
 }
-// ===================================
+var iter = parseInt(process.argv[3]);  // 2, number of iterations
+var trialNumber = parseInt(process.argv[4])     //3, trial number
+var renderOutput = process.argv[5] == "true"; // 4, don't render output image
+var eval_mode = process.argv[6] == "true";  // 5, disable all console.log  except duration in the eval mode
 
+// ============ fill noisySignal=================
 
+var imgHeight = 0;
+var imgWidth = 0;
+var noisySignal = null;
 
-// get image data including meta data (4 channels)
-var noisyImg = getImgData(imgName);
+if (!eval_mode){
+    var imgName = process.argv[2];  // 1, image name 
+    // get image data including meta data (4 channels)
+    var noisyImg = getImgData(imgName);
+    // reduce pixel values to 1 channel
+    noisySignal = getSingleCh(noisyImg.data, noisyImg.height*noisyImg.width); // buffer
 
-// reduce pixel values to 1 channel
-var noisySignal = getSingleCh(noisyImg.data, noisyImg.height*noisyImg.width); // buffer
+    imgHeight = noisyImg.height;
+    imgWidth = noisyImg.width;
+}else{//generate fake image data
+    var imgSize = parseInt(process.argv[2]);  // 1, image size (height = width = size)
+    imgHeight = imgSize;
+    imgWidth = imgSize;
+    noisySignal = new Float32Array(imgHeight * imgWidth);
+    for (var i = 0; i < imgHeight * imgWidth; i ++){
+        noisySignal[i] = i;
+   }
+}
+// ===============================================
 
 function getSingleCh(buffer4Ch, imgSize){
     var noisySignal = new Buffer.alloc(imgSize); //buffer
@@ -52,8 +63,6 @@ function  getImgData(name){
         console.log("===> image data length: " + (noisyImg.data.length));
         console.log("----image loading complete----");
     }
- 
-
     return noisyImg;
 }
 
@@ -283,9 +292,6 @@ var lambdaSmooth = 1 / SIGMASmooth ** 2;
 var variableNodes = {};
 var factorNodes = {};
 
-var imgHeight = noisyImg.height;
-var imgWidth = noisyImg.width;
-
 function setUpNodes(){
 
     for (var i = 0; i < imgHeight; i++){
@@ -453,10 +459,12 @@ console.log(duration);
 logResults();
 
 
+// ['trial_number','image_width', 'image_height', 'number_of_iter','duration_ms', 'render_output_image']
 function logResults(){
     const objectsToCsv = require('objects-to-csv');
-    var result = [{image : imgName,
-                image_size : imgHeight * imgWidth,
+    var result = [{ trial_number : trialNumber,
+                image_width : imgWidth,
+                image_height : imgHeight,
                 number_of_iter : iter, 
                 duration_ms : duration,
                 render_output_image : string(renderOutput)}];

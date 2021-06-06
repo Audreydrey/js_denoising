@@ -42,9 +42,9 @@ def eval_js_all_dir(size, it, renderOutput):
     for i in range(AVG):
         value = subprocess.check_output(
             ['node', 'denoise_alldir.js', 
-            str(size),            #image name
+            str(size),      #image size
             str(it),        #number of iterations
-            str(i + 1),         #trial number
+            str(i + 1),     #trial number
             renderOutput,   #don't render output image
             'true'])        #eval mode
         # print("value from js all dir")
@@ -62,7 +62,7 @@ def eval_js(size, it, renderOutput):
     for i in range(AVG):
         value = subprocess.check_output(
             ['node', 'denoise.js', 
-            str(size),            #image name
+            str(size),            #image size
             str(it),        #number of iterations
             str(i + 1),         #trial number
             renderOutput,    #don't render output image
@@ -89,7 +89,7 @@ if __name__=="__main__":
             writer = csv.DictWriter(csv_file, fieldnames=FIELD_NAME)
             writer.writeheader()
 
-   #======= generate random images with different height and width ==========
+   #======= generate random images with different height and width (32 to 512) ==========
     size = 32
     for i in range(5):
         for it in ITERS:

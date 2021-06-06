@@ -6,11 +6,11 @@ const { exit } = require('process');
 // ======= parse input args ==========
 // console.log(process.argv);
 if(process.argv.length != 7) {
-    exit("need 1，imgName or size 2，number of iter 3，render output images 4, eval mode");
+    exit("need 1，imgName or size 2，number of iter  3, trial numer 4，render output images 5, eval mode");
 }
 var iter = parseInt(process.argv[3]);  // 2, number of iterations
 var trialNumber = parseInt(process.argv[4])     //3, trial number
-var renderOutput = process.argv[5] == "true"; // 4, don't render output image
+var renderOutput = process.argv[5] == "true"; // 4, if render output image
 var eval_mode = process.argv[6] == "true";  // 5, disable all console.log  except duration in the eval mode
 
 // ============ fill noisySignal=================
@@ -483,7 +483,8 @@ function logResults(){
                 render_output_image : string(renderOutput)}];
     const csv = new objectsToCsv(result);
 
-    csv.toDisk('resultLog/resultLogAllDir.csv', {append : true});
+    csv.toDisk('js_resultLog/js_resultLogAllDir.csv', {append : true});
+
 
     // removed the append:true to clear previous results ===========
     // csv.toDisk('resultLog/resultLogAllDir.csv'); 

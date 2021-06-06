@@ -470,7 +470,7 @@ function logResults(){
                 render_output_image : string(renderOutput)}];
     const csv = new objectsToCsv(result);
 
-    csv.toDisk('resultLog/resultLog.csv', {append : true});
+    csv.toDisk('js_resultLog/js_resultLog.csv', {append : true});
 
     // removed the append:true to clear previous results ===========
     // csv.toDisk('resultLog/resultLogAllDir.csv'); 

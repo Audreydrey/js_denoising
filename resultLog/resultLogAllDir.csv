@@ -1,16 +1,1 @@
 trial_number,image_width,image_height,number_of_iter,duration_ms,render_output_image
-1,32,32,10,198,false
-2,32,32,10,218,false
-3,32,32,10,205,false
-1,64,64,10,639,false
-2,64,64,10,657,false
-3,64,64,10,801,false
-1,128,128,10,2435,false
-2,128,128,10,2580,false
-3,128,128,10,2582,false
-1,256,256,10,10069,false
-2,256,256,10,10083,false
-3,256,256,10,10221,false
-1,512,512,10,44058,false
-2,512,512,10,43502,false
-3,512,512,10,45155,false

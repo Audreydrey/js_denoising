@@ -17,7 +17,7 @@ INPUT_PATH= 'input/'
 RENDER_OUTPUT = 'false' #don't render output image during evaluation
 
 FIELD_NAME = ['trial_number','image_width', 'image_height', 'number_of_iter','duration_ms', 'render_output_image']
-LOG_FILE = ['resultLog/resultLogAllDir.csv', 'resultLog/resultLog.csv']
+LOG_FILE = ['js_resultLog/js_resultLogAllDir.csv', 'js_resultLog/js_resultLog.csv']
 
 
 # log mean var std for this img and number of iterations
@@ -90,11 +90,12 @@ if __name__=="__main__":
             writer.writeheader()
 
    #======= generate random images with different height and width (32 to 512) ==========
-    size = 32
-    for i in range(5):
+    size = 16
+    for i in range(6):
         for it in ITERS:
             eval_js_all_dir(size, it, RENDER_OUTPUT)
-            eval_js(size, it, RENDER_OUTPUT)
+            # eval_js(size, it, RENDER_OUTPUT)
+
         size = size * 2
 
 #   ============= get input image set ================
